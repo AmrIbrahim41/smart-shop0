@@ -1,5 +1,5 @@
 import React, { memo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // 1. قمنا بإضافة useNavigate هنا
 import { FaStar, FaCheck, FaTrash, FaShoppingBag } from 'react-icons/fa';
 import { getImageUrl } from '../../api';
 import { useCart } from '../../context/CartContext';
@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 
 const ProductCard = memo(({ product }) => {
     const { addToCart, removeFromCart, cartItems } = useCart();
+    const navigate = useNavigate(); // 2. تفعيل الهوك للتنقل
 
     const productId = product.id || product._id;
     const stockCount = product.count_in_stock !== undefined ? product.count_in_stock : product.countinstock;
@@ -20,6 +21,26 @@ const ProductCard = memo(({ product }) => {
 
     const handleCartAction = useCallback((e) => {
         e.preventDefault();
+
+        // --- 3. بداية التعديل: التحقق من تسجيل الدخول ---
+        const userInfo = localStorage.getItem('userInfo');
+
+        if (!userInfo) {
+            // رسالة تنبيه لطيفة (اختياري)
+            toast.error("Please login to add items", {
+                icon: '🔒',
+                style: {
+                    borderRadius: '10px',
+                    background: '#333',
+                    color: '#fff',
+                },
+            });
+            // التوجيه لصفحة تسجيل الدخول
+            navigate('/login');
+            return; // إيقاف باقي الكود
+        }
+        // --- نهاية التعديل ---
+
         if (isOutOfStock) return;
 
         if (isInCart) {
@@ -57,7 +78,7 @@ const ProductCard = memo(({ product }) => {
                 </motion.div>
             ), { duration: 2000 });
         }
-    }, [isOutOfStock, isInCart, productId, product, removeFromCart, addToCart]);
+    }, [isOutOfStock, isInCart, productId, product, removeFromCart, addToCart, navigate]); // لا تنس إضافة navigate للمصفوفة
 
     return (
         <motion.div
@@ -78,7 +99,6 @@ const ProductCard = memo(({ product }) => {
                         alt={product.name}
                         loading="lazy"
                         className={`w-full h-full object-cover transition-all duration-700 ${isOutOfStock ? 'grayscale opacity-60' : ''}`}
-                        // Fallback للصورة لو الرابط مكسور
                         onError={(e) => { e.target.src = '/images/placeholder.png'; }}
                     />
                 </Link>
