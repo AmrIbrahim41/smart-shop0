@@ -8,7 +8,6 @@ from store.models import Order, OrderItem, ShippingAddress
 # -------------------------
 # 1. Profile Serializer 
 # -------------------------
-# في ملف serializers.py
 
 class ProfileSerializer(serializers.ModelSerializer):
     profilePicture = serializers.SerializerMethodField(source='profile_picture')
@@ -21,8 +20,6 @@ class ProfileSerializer(serializers.ModelSerializer):
         try:
             image = obj.profile_picture
             if image:
-                # 3. هذا الكود يجعل الرابط مرناً (Dynamic)
-                # سيتحول تلقائياً من localhost إلى اسم موقعك عند الرفع
                 request = self.context.get('request')
                 if request:
                     return request.build_absolute_uri(image.url)
