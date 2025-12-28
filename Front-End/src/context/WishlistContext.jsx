@@ -70,7 +70,6 @@ export const WishlistProvider = ({ children }) => {
     }
 
     try {
-      // 👇 التعديل هنا: تمت إضافة api/ قبل wishlist
       const { data } = await api.post('api/wishlist/toggle/', {
         product_id: product.id || product._id
       });

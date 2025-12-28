@@ -4,11 +4,9 @@ import ProductCard from '../../components/productcard/ProductCard';
 import Meta from '../../components/tapheader/Meta';
 import { FaStore, FaLayerGroup, FaSync, FaExclamationTriangle, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
-// --- مكون السلايدر الخاص بكل تصنيف ---
 const CategorySection = ({ category }) => {
     const rowRef = useRef(null);
 
-    // دالة التحريك (Scroll)
     const scroll = (offset) => {
         if (rowRef.current) {
             rowRef.current.scrollBy({ left: offset, behavior: 'smooth' });
@@ -18,7 +16,6 @@ const CategorySection = ({ category }) => {
     return (
         <div className="mb-12 animate-fade-in-up border-b border-gray-200 dark:border-white/5 pb-8 last:border-0">
             
-            {/* عنوان القسم */}
             <div className="flex justify-between items-end mb-6 px-4 md:px-0">
                 <div>
                     <h2 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-3">
@@ -30,7 +27,6 @@ const CategorySection = ({ category }) => {
                     </p>
                 </div>
 
-                {/* أزرار التنقل (تظهر فقط لو فيه منتجات كتير) */}
                 {category.products?.length > 4 && (
                     <div className="hidden md:flex gap-2">
                         <button 
@@ -49,7 +45,7 @@ const CategorySection = ({ category }) => {
                 )}
             </div>
 
-            {/* منطقة الكروت (Slider Container) */}
+            {/* (Slider Container) */}
             <div className="relative group px-4 md:px-0">
                 <div 
                     ref={rowRef}
@@ -58,9 +54,6 @@ const CategorySection = ({ category }) => {
                 >
                     {category.products && category.products.length > 0 ? (
                         category.products.map((product) => (
-                            // --- التعديل هنا ---
-                            // استخدمنا w بدلاً من min-w لتثبيت العرض تماماً
-                            // استخدمنا flex-none لمنع الكارت من التمدد أو الانكماش
                             <div 
                                 key={product.id || product._id} 
                                 className="w-[280px] md:w-[300px] flex-none snap-start transform transition duration-300 hover:scale-[1.02]"

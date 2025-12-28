@@ -178,7 +178,6 @@ const ProfileScreen = () => {
             <div className="relative w-32 h-32 mx-auto mb-6 group">
               <div className="w-full h-full rounded-full overflow-hidden border-4 border-white dark:border-gray-700 shadow-lg bg-gray-100 dark:bg-gray-700">
                 <img
-                  // إذا كان هناك رابط معاينة استخدمه، وإلا استخدم الصورة المحلية الموجودة في مجلد public
                   src={images.preview ? images.preview : "/images/placeholder.png"}
                   alt="Profile"
                   className="w-full h-full object-cover"

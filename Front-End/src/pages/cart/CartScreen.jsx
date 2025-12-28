@@ -4,12 +4,14 @@ import { useCart } from '../../context/CartContext';
 import { FaTrash, FaMinus, FaPlus, FaArrowRight, FaShoppingBag, FaSync } from 'react-icons/fa';
 import Meta from '../../components/tapheader/Meta';
 import { useSettings } from '../../context/SettingsContext';
-import api, { getImageUrl } from '../../api'; 
+import api, { getImageUrl, cartinfo } from '../../api'; 
 import toast from 'react-hot-toast'; 
 
-const TAX_RATE = 0.05;
-const FREE_SHIPPING_THRESHOLD = 100;
-const SHIPPING_COST = 10;
+const TAX_RATE = cartinfo.TAX_RATE;
+const FREE_SHIPPING_THRESHOLD = cartinfo.FREE_SHIPPING_THRESHOLD;
+const SHIPPING_COST = cartinfo.SHIPPING_COST;
+
+
 
 const CartScreen = () => {
   const { cartItems, removeFromCart, fetchCart } = useCart(); 
@@ -18,23 +20,17 @@ const CartScreen = () => {
 
   const [updatingId, setUpdatingId] = useState(null);
 
-  // --- دالة مساعدة لحساب السعر الفعلي (هل نستخدم الخصم أم السعر الأصلي؟) ---
   const getEffectivePrice = (item) => {
-      // نتأكد من تحويل القيم لأرقام لتجنب الأخطاء
-      // نتحقق من discount_price (كما يأتي من الباك إند) أو discountPrice
       const price = Number(item.price);
       const discount = Number(item.discount_price || item.discountPrice || 0);
       
-      // نستخدم الخصم فقط إذا كان أكبر من صفر وأقل من السعر الأصلي
       if (discount > 0 && discount < price) {
           return discount;
       }
       return price;
   };
 
-  // --- 1. Performance: الحسابات تعتمد الآن على getEffectivePrice ---
   const { subtotal, tax, shipping, total } = useMemo(() => {
-    // التعديل هنا: ضرب الكمية في "السعر الفعلي" بدلاً من السعر الثابت
     const sub = cartItems.reduce((acc, item) => acc + item.qty * getEffectivePrice(item), 0);
     
     const taxVal = sub * TAX_RATE;
@@ -53,7 +49,6 @@ const CartScreen = () => {
     }
   };
 
-  // --- 2. Logic: دالة تحديث الكمية ---
   const handleQtyChange = useCallback(async (item, newQty) => {
       const productId = item.product || item.id || item._id;
       
@@ -118,7 +113,6 @@ const CartScreen = () => {
               const currentId = item.product || item.id || item._id;
               const isUpdating = updatingId === currentId;
 
-              // حساب القيم للعرض
               const effectivePrice = getEffectivePrice(item);
               const hasDiscount = effectivePrice < Number(item.price);
 
@@ -146,7 +140,6 @@ const CartScreen = () => {
                       {item.name}
                     </Link>
 
-                    {/* --- التعديل في العرض هنا --- */}
                     <div className="mb-4 flex flex-col sm:items-start items-center">
                         {hasDiscount ? (
                             <>
@@ -157,7 +150,6 @@ const CartScreen = () => {
                             <span className="text-primary font-black text-xl">${item.price}</span>
                         )}
                     </div>
-                    {/* --------------------------- */}
                     
                     <div className="flex items-center justify-between sm:justify-start gap-4">
                         <div className="flex items-center bg-gray-100 dark:bg-gray-900 rounded-xl p-1 border border-gray-200 dark:border-gray-700">

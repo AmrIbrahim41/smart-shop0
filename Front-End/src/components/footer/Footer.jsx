@@ -10,7 +10,6 @@ const Footer = () => {
 
   const handleSubscribe = (e) => {
     e.preventDefault();
-    // apiService.subscribeNewsletter(email)...
     alert("Thanks for subscribing! (This is a demo)");
   };
 
@@ -66,7 +65,6 @@ const Footer = () => {
             </h3>
             <ul className="space-y-3 text-sm text-gray-500 dark:text-gray-400">
               <li><Link to="/profile" className="hover:text-primary transition">{t('myAccount') || "My Account"}</Link></li>
-              {/* ملاحظة: تأكد أن لديك صفحة /shipping في الراوتر */}
               <li><Link to="/shipping" className="hover:text-primary transition">{t('shippingPolicy') || "Shipping Policy"}</Link></li>
               <li><Link to="#" className="hover:text-primary transition">{t('returns') || "Returns"}</Link></li>
               <li><Link to="#" className="hover:text-primary transition">{t('faq') || "FAQ"}</Link></li>

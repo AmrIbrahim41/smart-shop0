@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { FaCheckCircle, FaMapMarkerAlt, FaCreditCard, FaBoxOpen, FaSpinner, FaArrowRight } from 'react-icons/fa';
-import api, { ENDPOINTS, getImageUrl } from '../../api';
+import api, { ENDPOINTS, getImageUrl,cartinfo } from '../../api';
 import Meta from '../../components/tapheader/Meta';
 import CheckoutSteps from '../../components/checkout/CheckoutSteps';
 import { useSettings } from '../../context/SettingsContext';
@@ -14,7 +14,6 @@ const PlaceOrderScreen = () => {
     const [success, setSuccess] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    // --- 1. نفس دالة حساب السعر من CartScreen ---
     const getEffectivePrice = (item) => {
         const price = Number(item.price);
         const discount = Number(item.discount_price || item.discountPrice || 0);
@@ -25,13 +24,11 @@ const PlaceOrderScreen = () => {
         return price;
     };
 
-    // --- 2. تحديث الحسابات لتستخدم السعر الفعلي ---
     const { itemsPrice, shippingPrice, taxPrice, totalPrice } = useMemo(() => {
-        // التعديل هنا: استخدام getEffectivePrice بدلاً من item.price
         const items = cartItems.reduce((acc, item) => acc + getEffectivePrice(item) * item.qty, 0);
         
         const shipping = items > 100 ? 0 : 10;
-        const tax = Number((0.05 * items).toFixed(2)); // تأكد أن الضريبة 0.05 مثل CartScreen (كانت 0.15 هنا)
+        const tax = Number((cartinfo.TAX_RATE * items).toFixed(2)); 
         const total = (items + shipping + tax).toFixed(2);
 
         return {
@@ -88,7 +85,7 @@ const PlaceOrderScreen = () => {
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column: Details */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* ... (Shipping Info & Payment Info - لا تغيير) ... */}
+                    {/* ... (Shipping Info & Payment Info) ... */}
                     
                     {/* Shipping Info */}
                     <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-sm">
@@ -130,7 +127,6 @@ const PlaceOrderScreen = () => {
                         ) : (
                             <div className="space-y-4">
                                 {cartItems.map((item, index) => {
-                                    // حساب السعر للعرض هنا أيضاً
                                     const effectivePrice = getEffectivePrice(item);
                                     
                                     return (
@@ -153,7 +149,6 @@ const PlaceOrderScreen = () => {
                                             </p>
                                         </div>
                                         <div className="text-right">
-                                            {/* عرض السعر الإجمالي للمنتج بناءً على الخصم */}
                                             <p className="text-gray-900 dark:text-white font-black text-lg">
                                                 ${(item.qty * effectivePrice).toFixed(2)}
                                             </p>

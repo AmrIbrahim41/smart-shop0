@@ -1,5 +1,5 @@
 import React, { memo, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // 1. قمنا بإضافة useNavigate هنا
+import { Link, useNavigate } from 'react-router-dom';
 import { FaStar, FaCheck, FaTrash, FaShoppingBag } from 'react-icons/fa';
 import { getImageUrl } from '../../api';
 import { useCart } from '../../context/CartContext';
@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 
 const ProductCard = memo(({ product }) => {
     const { addToCart, removeFromCart, cartItems } = useCart();
-    const navigate = useNavigate(); // 2. تفعيل الهوك للتنقل
+    const navigate = useNavigate(); 
 
     const productId = product.id || product._id;
     const stockCount = product.count_in_stock !== undefined ? product.count_in_stock : product.countinstock;
@@ -22,11 +22,9 @@ const ProductCard = memo(({ product }) => {
     const handleCartAction = useCallback((e) => {
         e.preventDefault();
 
-        // --- 3. بداية التعديل: التحقق من تسجيل الدخول ---
         const userInfo = localStorage.getItem('userInfo');
 
         if (!userInfo) {
-            // رسالة تنبيه لطيفة (اختياري)
             toast.error("Please login to add items", {
                 icon: '🔒',
                 style: {
@@ -35,11 +33,9 @@ const ProductCard = memo(({ product }) => {
                     color: '#fff',
                 },
             });
-            // التوجيه لصفحة تسجيل الدخول
             navigate('/login');
-            return; // إيقاف باقي الكود
+            return; 
         }
-        // --- نهاية التعديل ---
 
         if (isOutOfStock) return;
 
@@ -78,7 +74,7 @@ const ProductCard = memo(({ product }) => {
                 </motion.div>
             ), { duration: 2000 });
         }
-    }, [isOutOfStock, isInCart, productId, product, removeFromCart, addToCart, navigate]); // لا تنس إضافة navigate للمصفوفة
+    }, [isOutOfStock, isInCart, productId, product, removeFromCart, addToCart, navigate]); 
 
     return (
         <motion.div

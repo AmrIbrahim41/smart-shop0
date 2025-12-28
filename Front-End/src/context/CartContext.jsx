@@ -64,7 +64,7 @@ export const CartProvider = ({ children }) => {
     const userInfo = getUserInfo();
     if (!userInfo) return;
 
-    dispatch({ type: "CART_REQUEST" }); // اختياري: لو عايز تظهر لودينج
+    dispatch({ type: "CART_REQUEST" });
 
     try {
       const { data } = await api.get('cart/');

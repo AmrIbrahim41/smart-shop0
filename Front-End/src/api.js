@@ -129,4 +129,10 @@ export const links = {
   whatsapp: "https://wa.me/YourNumber",
 };
 
+export const cartinfo = {
+   TAX_RATE : 0.05,
+   FREE_SHIPPING_THRESHOLD : 100,
+   SHIPPING_COST : 10,
+}
+
 export default api;

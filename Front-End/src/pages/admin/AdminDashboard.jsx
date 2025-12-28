@@ -119,18 +119,14 @@ const AdminDashboard = () => {
         try {
             alert("Starting Download... 📂");
 
-            // 2. التعديل هنا:
-            // - استخدام api بدلاً من apiService
-            // - إضافة /api/ قبل الرابط عشان الباك إند يشوفه صح
             const response = await api.get('/api/orders/export/csv/', {
                 responseType: 'blob', // مهم جداً عشان الملف ينزل
             });
 
-            // إنشاء رابط تحميل وهمي
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', 'orders_report.csv'); // اسم الملف اللي هينزل
+            link.setAttribute('download', 'orders_report.csv'); 
             document.body.appendChild(link);
             link.click();
             link.remove();

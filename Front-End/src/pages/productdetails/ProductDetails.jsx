@@ -343,11 +343,9 @@ const ProductDetails = () => {
                         </h3>
                         {userInfo ? (
                             (userReview && !isEditing) ? (
-                                // التعديل هنا: تغيير ألوان الخلفية والحدود للبرتقالي والأحمر
                                 <div className="relative bg-gradient-to-br from-orange-50 via-white to-red-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-900 p-8 md:p-12 rounded-[2.5rem] text-center border border-orange-100 dark:border-red-500/10 overflow-hidden shadow-sm group hover:shadow-lg transition-all duration-500">
                                     
                                     {/* --- Background Animation (Floating Hearts) --- */}
-                                    {/* التعديل هنا: تغيير ألوان القلوب الخلفية للأحمر */}
                                     <div className="absolute inset-0 overflow-hidden pointer-events-none">
                                         <div className="absolute top-10 left-10 text-red-200 dark:text-red-500/10 animate-bounce duration-[2000ms]">
                                             <FaHeart size={20} />
@@ -361,7 +359,6 @@ const ProductDetails = () => {
                                         <div className="absolute top-5 right-20 text-orange-100 dark:text-red-500/5 animate-pulse duration-[2500ms]">
                                             <FaHeart size={18} />
                                         </div>
-                                        {/* وهج خلفي أحمر */}
                                         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-red-500/5 rounded-full blur-3xl animate-pulse"></div>
                                     </div>
 
@@ -370,7 +367,6 @@ const ProductDetails = () => {
                                         
                                         {/* Animated Heart Icon */}
                                         <div className="relative mb-6">
-                                            {/* التعديل هنا: الوهج والقلب الرئيسي أحمر في برتقالي */}
                                             <div className="absolute inset-0 bg-red-500 rounded-full blur-lg opacity-20 animate-pulse"></div>
                                             <div className="w-20 h-20 bg-gradient-to-tr from-red-600 to-orange-500 text-white rounded-full flex items-center justify-center shadow-xl shadow-red-500/30 animate-bounce-slow">
                                                 <FaHeart className="text-3xl" />

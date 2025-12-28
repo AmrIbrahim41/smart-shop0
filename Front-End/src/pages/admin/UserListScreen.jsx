@@ -87,7 +87,7 @@ const UserListScreen = () => {
                 {!loading && <span className="text-sm text-gray-400 font-medium">({filteredUsers.length})</span>}
             </h1>
             
-            {/* زر التحديث */}
+            {/* refreash but*/}
             <button 
                 onClick={fetchUsers} 
                 className="p-3 bg-white dark:bg-white/5 rounded-xl shadow-sm hover:shadow-md transition text-gray-500 hover:text-primary"
