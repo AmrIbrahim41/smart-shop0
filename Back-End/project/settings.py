@@ -138,6 +138,7 @@ CORS_ALLOWED_ORIGINS = [
     FRONTEND_URL, 
 ]
 
+
 if os.environ.get("ADDITIONAL_CORS"):
     CORS_ALLOWED_ORIGINS.extend(os.environ.get("ADDITIONAL_CORS").split(","))
 
