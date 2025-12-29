@@ -58,7 +58,7 @@ const HomeScreen = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
-      <Meta title={keyword ? `${keyword} - Search Results` : t('homeTitle') || "Home | SmartShop"} />
+      <Meta title={keyword ? `${keyword} - Search Results` : t('SmartShop') || "Home | SmartShop"} />
 
       {isMainHome && !error && (
         <div className="pt-20 md:pt-24 px-4 max-w-[1400px] mx-auto mb-6">
