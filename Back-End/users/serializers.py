@@ -8,11 +8,11 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from .models import Profile
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 # =============================================================================
 # PROFILE SERIALIZER
@@ -21,21 +21,20 @@ logger = logging.getLogger(__name__)
 class ProfileSerializer(serializers.ModelSerializer):
     """User profile serializer with proper image URL handling"""
     
-    profilePicture = serializers.SerializerMethodField(read_only=True)
-    userType = serializers.CharField(source="user_type")
+    profile_picture = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Profile
         fields = [
-            "userType",
+            "user_type",
             "phone",
             "birthdate",
             "city",
             "country",
-            "profilePicture",
+            "profile_picture",
         ]
 
-    def get_profilePicture(self, obj):
+    def get_profile_picture(self, obj):
         """Build absolute URL for profile picture"""
         try:
             if obj.profile_picture:
@@ -47,7 +46,6 @@ class ProfileSerializer(serializers.ModelSerializer):
             logger.warning(f"Error getting profile picture URL: {str(e)}")
         return None
 
-
 # =============================================================================
 # USER SERIALIZERS
 # =============================================================================
@@ -55,8 +53,8 @@ class ProfileSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     """Basic user serializer with profile data"""
     
-    profile = ProfileSerializer(read_only=True)
-    isAdmin = serializers.SerializerMethodField(read_only=True)
+    profile = serializers.SerializerMethodField(read_only=True)
+    is_admin = serializers.SerializerMethodField(read_only=True)
     name = serializers.SerializerMethodField(read_only=True)
     _id = serializers.SerializerMethodField(read_only=True)
 
@@ -70,14 +68,15 @@ class UserSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "name",
-            "isAdmin",
+            "is_admin",
             "profile",
+            "date_joined",
         ]
 
     def get__id(self, obj):
         return obj.id
 
-    def get_isAdmin(self, obj):
+    def get_is_admin(self, obj):
         return obj.is_staff
 
     def get_name(self, obj):
@@ -86,6 +85,14 @@ class UserSerializer(serializers.ModelSerializer):
             name = obj.email
         return name
 
+    def get_profile(self, obj):
+        """Safely fetch profile to avoid RelatedObjectDoesNotExist crash"""
+        try:
+            if hasattr(obj, 'profile'):
+                return ProfileSerializer(obj.profile, context=self.context).data
+            return None
+        except Exception:
+            return None
 
 class UserSerializerWithToken(UserSerializer):
     """User serializer with JWT access token"""
@@ -100,7 +107,6 @@ class UserSerializerWithToken(UserSerializer):
         """Generate JWT access token"""
         token = RefreshToken.for_user(obj)
         return str(token.access_token)
-
 
 # =============================================================================
 # REGISTRATION SERIALIZER
@@ -156,35 +162,33 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        """Create user with profile"""
-        # Remove non-User fields
+        """Create user with profile atomically"""
         validated_data.pop("confirm_password")
         phone = validated_data.pop("phone", None)
         user_type = validated_data.pop("user_type", "customer")
 
-        # Create user
-        user = User.objects.create_user(
-            username=validated_data["email"],
-            email=validated_data["email"],
-            password=validated_data["password"],
-            first_name=validated_data.get("first_name", ""),
-            last_name=validated_data.get("last_name", ""),
-            is_active=False,  # Requires email activation
-        )
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=validated_data["email"],
+                email=validated_data["email"],
+                password=validated_data["password"],
+                first_name=validated_data.get("first_name", ""),
+                last_name=validated_data.get("last_name", ""),
+                is_active=False,
+            )
 
-        # Update profile
-        try:
-            profile = user.profile
-            if phone:
-                profile.phone = phone
-            profile.user_type = user_type
-            profile.save()
-            logger.info(f"User created: {user.id} ({user_type})")
-        except Exception as e:
-            logger.error(f"Error updating profile for user {user.id}: {str(e)}")
+            try:
+                profile = user.profile
+                if phone:
+                    profile.phone = phone
+                profile.user_type = user_type
+                profile.save()
+                logger.info(f"User created: {user.id} ({user_type})")
+            except Exception as e:
+                logger.error(f"Error updating profile for user {user.id}: {str(e)}")
+                raise serializers.ValidationError("Failed to complete profile creation.")
 
         return user
-
 
 # =============================================================================
 # LOGIN TOKEN SERIALIZER
@@ -197,12 +201,10 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         """Add user data to JWT token response"""
         data = super().validate(attrs)
 
-        # Ensure profile exists
         if not hasattr(self.user, "profile"):
             Profile.objects.create(user=self.user)
             logger.info(f"Profile created for existing user {self.user.id}")
 
-        # Add user serializer data to response
         serializer = UserSerializerWithToken(
             self.user,
             many=False,

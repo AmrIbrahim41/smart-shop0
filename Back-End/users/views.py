@@ -13,6 +13,8 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db import transaction
 
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -47,7 +49,7 @@ class MyTokenObtainPairView(TokenObtainPairView):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
-def registerUser(request):
+def register_user(request):
     """
     Register a new user with email activation.
     Creates inactive user until email is verified.
@@ -84,28 +86,30 @@ def registerUser(request):
         )
 
     try:
-        # Create user (inactive until email verification)
-        user = User.objects.create(
-            first_name=data.get("first_name", ""),
-            last_name=data.get("last_name", ""),
-            username=email,
-            email=email,
-            password=make_password(password),
-            is_active=False,
-        )
+        with transaction.atomic():
+            # Create user (inactive until email verification)
+            user = User.objects.create(
+                first_name=data.get("first_name", ""),
+                last_name=data.get("last_name", ""),
+                username=email,
+                email=email,
+                password=make_password(password),
+                is_active=False,
+            )
 
-        # Update profile
-        try:
-            profile = user.profile
-            profile.phone = data.get("phone", "")
-            profile.user_type = data.get("type", "customer")
-            profile.save()
-        except Exception as e:
-            logger.error(f"Profile update failed for user {user.email}: {str(e)}")
+            # Update profile
+            try:
+                profile = user.profile
+                profile.phone = data.get("phone", "")
+                profile.user_type = data.get("type", "customer")
+                profile.save()
+            except Exception as e:
+                logger.error(f"Profile update failed for user {user.email}: {str(e)}")
+                raise Exception("Profile creation failed")
 
-        # Generate activation token
-        token = default_token_generator.make_token(user)
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
+            # Generate activation token
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
 
         # Build activation link
         frontend_url = settings.FRONTEND_URL
@@ -139,7 +143,6 @@ Smart Shop Team
             logger.info(f"Activation email sent to {email}")
         except Exception as e:
             logger.error(f"Failed to send activation email to {email}: {str(e)}")
-            # Don't fail registration if email fails
             return Response(
                 {
                     "detail": "Account created but failed to send activation email. Please contact support."
@@ -164,7 +167,7 @@ Smart Shop Team
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
-def activateUser(request, uid, token):
+def activate_user(request, uid, token):
     """Activate user account using email verification token"""
     try:
         user_id = force_str(urlsafe_base64_decode(uid))
@@ -203,7 +206,7 @@ def activateUser(request, uid, token):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def getUserProfile(request):
+def get_user_profile(request):
     """Get current user's profile"""
     user = request.user
     serializer = UserSerializer(user, many=False, context={"request": request})
@@ -213,7 +216,7 @@ def getUserProfile(request):
 @api_view(["PUT"])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
-def updateUserProfile(request):
+def update_user_profile(request):
     """Update current user's profile"""
     user = request.user
     data = request.data
@@ -226,7 +229,6 @@ def updateUserProfile(request):
     if data.get("password") and data.get("password") != "":
         password = data["password"]
         
-        # Validate new password
         try:
             validate_password(password)
             user.password = make_password(password)
@@ -237,37 +239,30 @@ def updateUserProfile(request):
             )
 
     try:
-        user.save()
+        with transaction.atomic():
+            user.save()
+            
+            # Update profile
+            profile = user.profile
+            profile.phone = data.get("phone", profile.phone)
+            profile.city = data.get("city", profile.city)
+            profile.country = data.get("country", profile.country)
+
+            if data.get("birthdate"):
+                profile.birthdate = data["birthdate"]
+
+            profile_pic = request.FILES.get("profile_picture") or data.get("profile_picture")
+            if profile_pic and not isinstance(profile_pic, str):
+                profile.profile_picture = profile_pic
+
+            profile.save()
+            logger.info(f"Profile updated for user {user.id}")
+
     except Exception as e:
-        logger.error(f"Error updating user {user.id}: {str(e)}")
+        logger.error(f"Error updating user/profile {user.id}: {str(e)}")
         return Response(
             {"detail": "Failed to update profile."},
             status=status.HTTP_400_BAD_REQUEST
-        )
-
-    # Update profile
-    try:
-        profile = user.profile
-        profile.phone = data.get("phone", profile.phone)
-        profile.city = data.get("city", profile.city)
-        profile.country = data.get("country", profile.country)
-
-        if data.get("birthdate"):
-            profile.birthdate = data["birthdate"]
-
-        # Handle profile picture upload
-        profile_pic = data.get("profile_picture")
-        if profile_pic and not isinstance(profile_pic, str):
-            profile.profile_picture = profile_pic
-
-        profile.save()
-        logger.info(f"Profile updated for user {user.id}")
-
-    except Exception as e:
-        logger.error(f"Error updating profile for user {user.id}: {str(e)}")
-        return Response(
-            {"detail": "Profile updated but some fields may not have been saved."},
-            status=status.HTTP_200_OK
         )
 
     serializer = UserSerializerWithToken(user, many=False, context={"request": request})
@@ -290,9 +285,10 @@ def forgot_password(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    try:
-        user = User.objects.get(email=email)
+    # التعديل الهام: استخدام filter بدلاً من get
+    user = User.objects.filter(email=email).first()
         
+    if user:
         # Generate reset token
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
@@ -332,18 +328,11 @@ Smart Shop Team
         except Exception as e:
             logger.error(f"Failed to send reset email to {email}: {str(e)}")
 
-        # Always return success message (security best practice)
-        return Response(
-            {"detail": "If this email exists, a password reset link has been sent."},
-            status=status.HTTP_200_OK
-        )
-
-    except User.DoesNotExist:
-        # Don't reveal if email exists (security best practice)
-        return Response(
-            {"detail": "If this email exists, a password reset link has been sent."},
-            status=status.HTTP_200_OK
-        )
+    # Always return success message (security best practice)
+    return Response(
+        {"detail": "If this email exists, a password reset link has been sent."},
+        status=status.HTTP_200_OK
+    )
 
 
 @api_view(["POST"])
@@ -352,7 +341,7 @@ def reset_password(request, uid, token):
     """Reset password using token from email"""
     data = request.data
     new_password = data.get("password")
-    confirm_password = data.get("confirmPassword")
+    confirm_password = data.get("confirm_password")
 
     if not new_password or not confirm_password:
         return Response(
@@ -406,16 +395,33 @@ def reset_password(request, uid, token):
 
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
-def getUsers(request):
-    """Get all users (admin only)"""
+def get_users(request):
+    """Get all users (admin only) - With Pagination"""
     users = User.objects.select_related("profile").all().order_by("-date_joined")
-    serializer = UserSerializer(users, many=True, context={"request": request})
-    return Response(serializer.data)
+    
+    page = request.query_params.get('page', 1)
+    paginator = Paginator(users, 10) 
+    
+    try:
+        users_page = paginator.page(page)
+    except PageNotAnInteger:
+        users_page = paginator.page(1)
+    except EmptyPage:
+        users_page = paginator.page(paginator.num_pages)
+        
+    serializer = UserSerializer(users_page, many=True, context={"request": request})
+    
+    return Response({
+        'users': serializer.data,
+        'page': int(page),
+        'pages': paginator.num_pages,
+        'count': paginator.count
+    })
 
 
 @api_view(["DELETE"])
 @permission_classes([IsAdminUser])
-def deleteUser(request, pk):
+def delete_user(request, pk):
     """Delete user (admin only)"""
     try:
         user = User.objects.get(id=pk)
@@ -441,7 +447,7 @@ def deleteUser(request, pk):
 
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
-def getUserById(request, pk):
+def get_user_by_id(request, pk):
     """Get user by ID (admin only)"""
     try:
         user = User.objects.select_related("profile").get(id=pk)
@@ -456,7 +462,7 @@ def getUserById(request, pk):
 
 @api_view(["PUT"])
 @permission_classes([IsAdminUser])
-def updateUser(request, pk):
+def update_user(request, pk):
     """Update user (admin only)"""
     try:
         user = User.objects.get(id=pk)
@@ -467,7 +473,7 @@ def updateUser(request, pk):
         user.username = data.get("email", user.username)
         
         # Update admin status
-        is_admin = data.get("isAdmin", user.is_staff)
+        is_admin = data.get("is_admin", user.is_staff)
         if isinstance(is_admin, str):
             is_admin = is_admin.lower() in ("true", "1", "yes")
         user.is_staff = is_admin
@@ -491,28 +497,25 @@ def updateUser(request, pk):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def getSellerOrders(request):
+def get_seller_orders(request):
     """
     Get all orders containing products from the current vendor.
     Returns individual order items, not complete orders.
     """
     user = request.user
 
-    # Check if user is a vendor
     if not hasattr(user, "profile") or user.profile.user_type != "vendor":
         return Response(
             {"detail": "Access denied. Vendor account required."},
             status=status.HTTP_403_FORBIDDEN
         )
 
-    # Get order items for this vendor's products
     items = (
         OrderItem.objects.filter(product__user=user)
         .select_related("order", "order__user", "product")
         .order_by("-order__created_at")
     )
 
-    # Format response
     custom_orders = []
     for item in items:
         custom_orders.append({
@@ -522,10 +525,10 @@ def getSellerOrders(request):
             "product_name": item.name,
             "qty": item.qty,
             "price": str(item.price),
-            "totalPrice": str(item.price * item.qty),
-            "createdAt": item.order.created_at.isoformat(),
-            "isPaid": item.order.is_paid,
-            "isDelivered": item.order.is_delivered,
+            "total_price": str(item.price * item.qty),
+            "created_at": item.order.created_at.isoformat(),
+            "is_paid": item.order.is_paid,
+            "is_delivered": item.order.is_delivered,
             "status": item.order.status,
         })
 

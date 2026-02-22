@@ -5,6 +5,7 @@ import Meta from '../../components/tapheader/Meta';
 import CheckoutSteps from '../../components/checkout/CheckoutSteps';
 import { useSettings } from '../../context/SettingsContext';
 import { FaCreditCard, FaPaypal, FaLock, FaArrowRight } from 'react-icons/fa';
+import toast from 'react-hot-toast';
 
 const PaymentScreen = () => {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ const PaymentScreen = () => {
   const submitHandler = useCallback((e) => {
     e.preventDefault();
     if (!paymentMethod) {
-        alert(t('selectPaymentMethod') || "Please select a payment method");
+        toast.error(t('selectPaymentMethod') || "Please select a payment method");
         return;
     }
     

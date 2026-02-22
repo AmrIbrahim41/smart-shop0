@@ -16,7 +16,10 @@ const AdminRoute = ({ children }) => {
 
     const userInfo = getUserInfo();
 
-    if (userInfo && userInfo.isAdmin) {
+    // التعديل هنا: فحصنا الحالتين زي ما عملت في الـ Navbar
+    const isAdmin = userInfo?.isAdmin === true || userInfo?.is_admin === true;
+
+    if (isAdmin) {
         return children ? children : <Outlet />;
     } else {
         return <Navigate to="/login" replace />;

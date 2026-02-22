@@ -1,399 +1,429 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { ENDPOINTS, getImageUrl } from '../../api';
-import { FaCamera, FaBoxOpen, FaUserEdit, FaCalendarAlt, FaMapMarkerAlt, FaGlobe, FaSave, FaUser, FaSpinner } from 'react-icons/fa';
+import api, { getImageUrl } from '../../api';
+import { FaUser, FaEnvelope, FaLock, FaCamera, FaSave, FaSpinner } from 'react-icons/fa';
 import Meta from '../../components/tapheader/Meta';
 import { useSettings } from '../../context/SettingsContext';
+import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
   const { t } = useSettings();
 
-  // --- State Management ---
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', email: '', phone: '',
-    city: '', country: '', birthdate: '',
-    password: '', confirmPassword: ''
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    city: '',
+    country: '',
+    birthdate: '',
+    password: '',
+    confirmPassword: ''
   });
 
-  const [images, setImages] = useState({
-    file: null,
-    preview: null
-  });
+  const [profile_picture, setprofile_picture] = useState(null);
+  const [profile_picturePreview, setprofile_picturePreview] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
 
-  const [userType, setUserType] = useState('customer');
-  const [status, setStatus] = useState({ loading: true, updating: false, message: null, error: false });
-  const [orders, setOrders] = useState({ myOrders: [], sellerOrders: [] });
-
-  const userInfo = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('userInfo'));
-    } catch {
-      return null;
-    }
-  }, []);
-
-  // --- Data Fetching ---
   useEffect(() => {
-    if (!userInfo) {
-      navigate('/login');
-      return;
-    }
-
-    const initializeProfile = () => {
-      let fName = '', lName = '';
-      if (userInfo.first_name || userInfo.last_name) {
-        fName = userInfo.first_name || '';
-        lName = userInfo.last_name || '';
-      } else if (userInfo.name) {
-        const parts = userInfo.name.split(' ');
-        fName = parts[0] || '';
-        lName = parts.slice(1).join(' ') || '';
-      }
-
-      setFormData(prev => ({
-        ...prev,
-        firstName: fName,
-        lastName: lName,
-        email: userInfo.email || '',
-        phone: userInfo.profile?.phone || '',
-        city: userInfo.profile?.city || '',
-        country: userInfo.profile?.country || '',
-        birthdate: userInfo.profile?.birthdate || '',
-      }));
-
-      setUserType(userInfo.profile?.user_type || 'customer');
-      if (userInfo.profile?.profilePicture) {
-        setImages(prev => ({ ...prev, preview: getImageUrl(userInfo.profile.profilePicture) }));
-      }
-    };
-
-    const fetchOrders = async () => {
+    const fetchProfile = async () => {
       try {
-        const promises = [api.get(ENDPOINTS.MY_ORDERS)];
+        const { data } = await api.get('/api/users/profile/');
 
-        if (userInfo.profile?.user_type === 'vendor') {
-          promises.push(api.get('/api/users/seller/orders/'));
+        setFormData({
+          firstName: data.name?.split(' ')[0] || '',
+          lastName: data.name?.split(' ').slice(1).join(' ') || '',
+          email: data.email || '',
+          phone: data.profile?.phone || '',
+          city: data.profile?.city || '',
+          country: data.profile?.country || '',
+          birthdate: data.profile?.birthdate || '',
+          password: '',
+          confirmPassword: ''
+        });
+
+        // تم التعديل هنا: استخدام profile_picture بدلاً من profile_picture
+        if (data.profile?.profile_picture) {
+          setprofile_picturePreview(getImageUrl(data.profile.profile_picture));
         }
 
-        const results = await Promise.all(promises);
-
-        setOrders(prev => ({
-          ...prev,
-          myOrders: results[0].data,
-          sellerOrders: results[1] ? results[1].data : []
-        }));
-
       } catch (error) {
-        console.error("Error fetching orders:", error);
+        console.error("Error fetching profile:", error);
+        const errorMsg = error.response?.data?.detail || "Failed to load profile";
+        toast.error(errorMsg);
+
+        if (error.response?.status === 401) {
+          navigate('/login');
+        }
       } finally {
-        setStatus(prev => ({ ...prev, loading: false }));
+        setLoading(false);
       }
     };
 
-    initializeProfile();
-    fetchOrders();
-  }, [userInfo, navigate]);
+    fetchProfile();
+  }, [navigate]);
 
-  // --- Handlers ---
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  const handleChange = useCallback((e) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  }, []);
 
-  const uploadFileHandler = (e) => {
+  const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setImages({
-        file: file,
-        preview: URL.createObjectURL(file)
-      });
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image must be less than 5MB');
+        return;
+      }
+
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file');
+        return;
+      }
+
+      setprofile_picture(file);
+      setprofile_picturePreview(URL.createObjectURL(file));
     }
   };
 
-  const submitHandler = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setStatus({ ...status, message: null, error: false });
 
-    if (formData.password !== formData.confirmPassword) {
-      setStatus({ ...status, message: t('passwordsDoNotMatch') || 'Passwords do not match', error: true });
+    if (formData.password && formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
       return;
     }
 
-    setStatus(prev => ({ ...prev, updating: true }));
-
-    const submitData = new FormData();
-    submitData.append('first_name', formData.firstName);
-    submitData.append('last_name', formData.lastName);
-    submitData.append('phone', formData.phone);
-    submitData.append('city', formData.city);
-    submitData.append('country', formData.country);
-    submitData.append('birthdate', formData.birthdate);
-
-    if (formData.password) {
-      submitData.append('password', formData.password);
+    if (formData.password && formData.password.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
     }
 
-    if (images.file) {
-      submitData.append('profile_picture', images.file);
-    }
+    setUpdating(true);
 
     try {
+      const submitData = new FormData();
+      submitData.append('first_name', formData.firstName);
+      submitData.append('last_name', formData.lastName);
+      submitData.append('phone', formData.phone || '');
+      submitData.append('city', formData.city || '');
+      submitData.append('country', formData.country || '');
+      if (formData.birthdate) {
+        submitData.append('birthdate', formData.birthdate);
+      }
+
+      if (formData.password) {
+        submitData.append('password', formData.password);
+      }
+
+      if (profile_picture) {
+        submitData.append('profile_picture', profile_picture);
+      }
+
       const { data } = await api.put('/api/users/profile/update/', submitData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
-      localStorage.setItem('userInfo', JSON.stringify(data));
-      setStatus({
-        loading: false,
-        updating: false,
-        message: t('profileUpdated') || 'Profile Updated Successfully ✅',
-        error: false
+      // Update localStorage with new user info
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+      const updatedUserInfo = {
+        ...userInfo,
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: data.email,
+        profile: data.profile
+      };
+      localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo));
+
+      // تحديث صورة العرض في حالة تم إرجاع رابط جديد من السيرفر
+      if (data.profile?.profile_picture) {
+        setprofile_picturePreview(getImageUrl(data.profile.profile_picture));
+      }
+
+      toast.success('Profile updated successfully!', {
+        icon: '✅',
+        duration: 3000,
       });
 
-      setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
+      // Clear password fields
+      setFormData(prev => ({
+        ...prev,
+        password: '',
+        confirmPassword: ''
+      }));
 
     } catch (error) {
-      console.error(error);
-      setStatus({
-        loading: false,
-        updating: false,
-        message: error.response?.data?.detail || t('profileUpdateError') || 'Error updating profile ❌',
-        error: true
-      });
+      console.error("Update error:", error);
+      const errorMsg = error.response?.data?.detail || "Failed to update profile";
+      toast.error(errorMsg);
+    } finally {
+      setUpdating(false);
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-32 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <FaSpinner className="animate-spin text-4xl text-primary" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen pt-28 pb-10 px-4 md:px-6 bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
-      <Meta title={t('myProfile') || "My Profile"} />
+    <div className="min-h-screen pt-28 pb-10 px-4 bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
+      <Meta title={`${t('profile') || 'Profile'} | SmartShop`} />
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="max-w-4xl mx-auto">
 
-        {/* Left Column: User Card & Form  */}
-        <div className="lg:col-span-4 xl:col-span-3">
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-6 rounded-[2.5rem] border border-white/20 dark:border-white/5 shadow-xl sticky top-28">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white mb-2 uppercase tracking-tight">
+            {t('myProfile') || "My Profile"}
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 font-medium">
+            Manage your personal information
+          </p>
+        </motion.div>
 
-            {/* Profile Image */}
-            <div className="relative w-32 h-32 mx-auto mb-6 group">
-              <div className="w-full h-full rounded-full overflow-hidden border-4 border-white dark:border-gray-700 shadow-lg bg-gray-100 dark:bg-gray-700">
-                <img
-                  src={images.preview ? images.preview : "/images/placeholder.png"}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.onerror = null; 
-                    e.target.src = "/images/placeholder.png"; 
-                  }}
-                />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-xl p-6 md:p-10"
+        >
+
+          <form onSubmit={handleSubmit} className="space-y-8">
+
+            {/* Profile Picture Section */}
+            <div className="flex flex-col items-center">
+              <div className="relative group">
+                <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 border-4 border-white dark:border-gray-800 shadow-lg">
+                  {profile_picturePreview ? (
+                    <img
+                      src={profile_picturePreview}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-4xl">
+                      <FaUser />
+                    </div>
+                  )}
+                </div>
+
+                <label className="absolute bottom-0 right-0 w-10 h-10 bg-primary hover:bg-orange-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg transition-all hover:scale-110">
+                  <FaCamera />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                </label>
               </div>
-              <label className="absolute bottom-1 right-1 bg-primary text-white p-2.5 rounded-full cursor-pointer hover:bg-orange-600 transition shadow-lg hover:scale-110 z-10">
-                <FaCamera size={14} />
-                <input type="file" className="hidden" accept="image/*" onChange={uploadFileHandler} />
-              </label>
+              <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                Click the camera icon to change photo
+              </p>
             </div>
 
-            <h2 className="text-xl font-black text-center text-gray-900 dark:text-white mb-1 truncate px-2">
-              {formData.firstName} {formData.lastName}
-            </h2>
-            <div className="flex justify-center mb-6">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${userType === 'vendor' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
-                {t(userType) || userType}
-              </span>
+            {/* Personal Information */}
+            <div className="space-y-6">
+              <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight border-b border-gray-200 dark:border-gray-700 pb-3">
+                Personal Information
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* First Name */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
+                    First Name *
+                  </label>
+                  <div className="relative">
+                    <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      name="firstName"
+                      required
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Last Name */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                {/* Email (Read Only) */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="email"
+                      value={formData.email}
+                      readOnly
+                      className="w-full bg-gray-100 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 font-bold text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 ml-1">Email cannot be changed</p>
+                </div>
+
+                {/* Phone */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-gray-900 dark:text-white"
+                    placeholder="+1 234 567 8900"
+                  />
+                </div>
+
+                {/* City */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleChange}
+                    className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-gray-900 dark:text-white"
+                    placeholder="New York"
+                  />
+                </div>
+
+                {/* Country */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
+                    Country
+                  </label>
+                  <input
+                    type="text"
+                    name="country"
+                    value={formData.country}
+                    onChange={handleChange}
+                    className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-gray-900 dark:text-white"
+                    placeholder="USA"
+                  />
+                </div>
+
+                {/* Birthdate */}
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
+                    Date of Birth
+                  </label>
+                  <input
+                    type="date"
+                    name="birthdate"
+                    value={formData.birthdate}
+                    onChange={handleChange}
+                    className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
             </div>
 
-            {status.message && (
-              <div className={`p-3 rounded-xl mb-6 text-xs font-bold text-center animate-pulse ${status.error ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                {status.message}
-              </div>
-            )}
+            {/* Password Change Section */}
+            <div className="space-y-6">
+              <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight border-b border-gray-200 dark:border-gray-700 pb-3">
+                Change Password (Optional)
+              </h3>
 
-            <form onSubmit={submitHandler} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('firstName')}</label>
-                  <input type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm dark:text-white focus:border-primary outline-none transition" placeholder="First Name" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* New Password */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-gray-900 dark:text-white"
+                      placeholder="••••••••"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('lastName')}</label>
-                  <input type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm dark:text-white focus:border-primary outline-none transition" placeholder="Last Name" />
+
+                {/* Confirm Password */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-gray-900 dark:text-white"
+                      placeholder="••••••••"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('email')}</label>
-                <input type="email" value={formData.email} readOnly className="w-full bg-gray-100 dark:bg-gray-700/50 border border-transparent rounded-xl p-2.5 text-sm text-gray-500 cursor-not-allowed" />
-              </div>
+              <p className="text-xs text-gray-400">
+                Leave blank if you don't want to change your password
+              </p>
+            </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">{t('phone')}</label>
-                <input type="text" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm dark:text-white focus:border-primary outline-none transition" placeholder="Phone Number" />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 flex items-center gap-1"><FaCalendarAlt /> {t('birthdate')}</label>
-                <input type="date" name="birthdate" value={formData.birthdate} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm dark:text-white focus:border-primary outline-none transition" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 flex items-center gap-1"><FaMapMarkerAlt /> {t('city')}</label>
-                  <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm dark:text-white focus:border-primary outline-none transition" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 flex items-center gap-1"><FaGlobe /> {t('country')}</label>
-                  <input type="text" name="country" value={formData.country} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm dark:text-white focus:border-primary outline-none transition" />
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-gray-100 dark:border-white/5 space-y-3">
-                <p className="text-xs font-bold text-primary uppercase text-center">{t('changePassword') || "Change Password"}</p>
-                <input type="password" name="password" value={formData.password} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm dark:text-white focus:border-primary outline-none transition" placeholder={t('newPasswordPlaceholder')} />
-                <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleInputChange} className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm dark:text-white focus:border-primary outline-none transition" placeholder={t('confirmPasswordPlaceholder')} />
-              </div>
-
-              <button
-                type="submit"
-                disabled={status.updating}
-                className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold py-3 rounded-xl hover:shadow-lg transition flex justify-center items-center gap-2 uppercase text-sm mt-2 disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {status.updating ? <FaSpinner className="animate-spin" /> : <FaSave />}
-                {status.updating ? 'Saving...' : (t('saveChanges') || "SAVE CHANGES")}
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Right Column: Orders */}
-        <div className="lg:col-span-8 xl:col-span-9 space-y-10">
-
-          {/* User Orders */}
-          <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] p-6 md:p-8 border border-gray-100 dark:border-white/5 shadow-sm">
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-6 flex items-center gap-3 uppercase">
-              <span className="p-3 bg-primary/10 text-primary rounded-2xl"><FaBoxOpen /></span>
-              {t('myPurchases') || "My Orders"}
-            </h2>
-            {status.loading ? (
-              <div className="text-center py-10 opacity-50 font-bold flex flex-col items-center gap-2">
-                <FaSpinner className="animate-spin text-2xl text-primary" /> Loading...
-              </div>
-            ) : orders.myOrders.length === 0 ? (
-              <div className="text-center py-10 text-gray-500 font-medium">{t('noPurchases') || "No orders yet."}</div>
-            ) : (
-              <OrdersTable orders={orders.myOrders} isSeller={false} navigate={navigate} t={t} />
-            )}
-          </div>
-
-          {/* Seller Dashboard Preview (If Vendor) */}
-          {userType === 'vendor' && (
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 dark:from-gray-800 dark:to-black rounded-[2.5rem] p-6 md:p-8 border border-gray-700 shadow-xl text-white">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-black flex items-center gap-3 uppercase">
-                  <span className="p-3 bg-white/10 rounded-2xl"><FaUserEdit className="text-green-400" /></span>
-                  {t('salesDashboard') || "Incoming Orders"}
-                </h2>
-                <button onClick={() => navigate('/dashboard')} className="px-4 py-2 bg-white text-black rounded-xl font-bold text-sm hover:bg-gray-200 transition">
-                  Manage Products &rarr;
-                </button>
-              </div>
-
-              {orders.sellerOrders.length === 0 ? (
-                <div className="text-center py-10 text-gray-400 font-medium">{t('noSalesRequests') || "No incoming sales yet."}</div>
+            {/* Submit Button */}
+            <motion.button
+              type="submit"
+              disabled={updating}
+              whileHover={{ scale: updating ? 1 : 1.02 }}
+              whileTap={{ scale: updating ? 1 : 0.98 }}
+              className="w-full bg-primary hover:bg-orange-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-primary/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed uppercase flex items-center justify-center gap-2"
+            >
+              {updating ? (
+                <>
+                  <FaSpinner className="animate-spin" />
+                  Updating Profile...
+                </>
               ) : (
-                <OrdersTable orders={orders.sellerOrders} isSeller={true} navigate={navigate} t={t} isDarkBg={true} />
+                <>
+                  <FaSave />
+                  Save Changes
+                </>
               )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
+            </motion.button>
 
-const OrdersTable = ({ orders, isSeller, navigate, t, isDarkBg = false }) => {
-  return (
-    <div className="overflow-hidden">
-      {/* Mobile View (Cards) */}
-      <div className="md:hidden space-y-4">
-        {orders.map((order) => {
-          // Safety check for ID
-          const orderId = isSeller ? (order.order_id) : (order._id || order.id);
-          const safeId = orderId ? orderId.toString().substring(0, 8) : '???';
+          </form>
 
-          return (
-            <div key={orderId || Math.random()} className={`p-4 rounded-2xl border ${isDarkBg ? 'bg-white/5 border-white/10' : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10'}`}>
-              <div className="flex justify-between items-start mb-2">
-                <span className={`font-black text-sm ${isDarkBg ? 'text-white' : 'text-gray-900 dark:text-white'}`}>#{safeId}</span>
-                <span className={`text-xs font-bold ${isDarkBg ? 'text-gray-400' : 'text-gray-500'}`}>{order.createdAt?.substring(0, 10)}</span>
-              </div>
-              <div className="mb-3">
-                {isSeller ? (
-                  <p className={`font-bold ${isDarkBg ? 'text-gray-200' : 'text-gray-700 dark:text-gray-300'}`}>{order.name} <span className="text-xs opacity-70">({order.qty}x)</span></p>
-                ) : (
-                  <p className="text-primary font-black">${order.totalPrice}</p>
-                )}
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex gap-2 text-[10px] font-black uppercase">
-                  <span className={`px-2 py-1 rounded ${order.isPaid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{order.isPaid ? 'Paid' : 'Unpaid'}</span>
-                  <span className={`px-2 py-1 rounded ${order.isDelivered ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{order.isDelivered ? 'Delivered' : 'Pending'}</span>
-                </div>
-                <button onClick={() => navigate(`/order/${orderId}`)} className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase ${isDarkBg ? 'bg-white text-black hover:bg-gray-200' : 'bg-gray-900 text-white dark:bg-white dark:text-black hover:opacity-90'}`}>
-                  {t('view')}
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        </motion.div>
 
-      {/* Desktop View (Table) */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className={`text-xs uppercase tracking-wider ${isDarkBg ? 'text-gray-400 border-b border-white/10' : 'text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-white/10'}`}>
-              <th className="p-4 pl-0">ID</th>
-              <th className="p-4">{t('date')}</th>
-              <th className="p-4">{isSeller ? t('product') : t('total')}</th>
-              <th className="p-4 text-center">{t('paid')}</th>
-              <th className="p-4 text-center">{t('delivered')}</th>
-              <th className="p-4 text-right"></th>
-            </tr>
-          </thead>
-          <tbody className={`text-sm font-medium ${isDarkBg ? 'text-gray-300' : 'text-gray-700 dark:text-gray-300'}`}>
-            {orders.map((order) => {
-              const orderId = isSeller ? (order.order_id) : (order._id || order.id);
-              const safeId = orderId ? orderId.toString().substring(0, 8) : '???';
-              return (
-                <tr key={orderId || Math.random()} className="group hover:bg-black/5 dark:hover:bg-white/5 transition border-b border-transparent hover:border-gray-200 dark:hover:border-white/10">
-                  <td className={`p-4 pl-0 font-bold ${isDarkBg ? 'text-white' : 'text-gray-900 dark:text-white'}`}>#{safeId}..</td>
-                  <td className="p-4">{order.createdAt?.substring(0, 10)}</td>
-                  <td className="p-4">
-                    {isSeller ? (
-                      <div>
-                        <span className={`block font-bold ${isDarkBg ? 'text-white' : 'text-gray-900 dark:text-white'}`}>{order.name}</span>
-                        <span className="text-xs opacity-60">{order.qty} x ${order.price}</span>
-                      </div>
-                    ) : (
-                      <span className="text-primary font-bold">${order.totalPrice}</span>
-                    )}
-                  </td>
-                  <td className="p-4 text-center">
-                    {order.isPaid ? <span className="text-green-500">✔</span> : <span className="text-red-500">✖</span>}
-                  </td>
-                  <td className="p-4 text-center">
-                    {order.isDelivered ? <span className="text-green-500">✔</span> : <span className="text-yellow-500">●</span>}
-                  </td>
-                  <td className="p-4 text-right">
-                    <button onClick={() => navigate(`/order/${orderId}`)} className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition ${isDarkBg ? 'bg-white/10 hover:bg-white text-white hover:text-black' : 'bg-gray-100 dark:bg-white/10 hover:bg-primary hover:text-white'}`}>
-                      {t('view')}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
       </div>
     </div>
   );

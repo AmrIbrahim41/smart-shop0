@@ -1,260 +1,498 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom'; 
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    FaSearch, FaSpinner, FaTimes, FaUserShield,
+    FaUser, FaFilter, FaUsers, FaTrash, FaExclamationTriangle,
+    FaStore, FaEnvelope, FaCalendarAlt
+} from 'react-icons/fa';
 import api from '../../api';
-import { FaTimes, FaCheck, FaTrash, FaUser, FaStore, FaEnvelope, FaIdBadge, FaUsersCog, FaSearch, FaSync } from 'react-icons/fa'; 
+import toast from 'react-hot-toast';
 import Meta from '../../components/tapheader/Meta';
-import { useSettings } from '../../context/SettingsContext'; 
+import Paginate from '../../components/paginate/Paginate';
 
 const UserListScreen = () => {
-  // --- State Management ---
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null); 
-  
-  // Filters & Search
-  const [filterType, setFilterType] = useState('customer'); 
-  const [searchQuery, setSearchQuery] = useState('')
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterRole, setFilterRole] = useState('all');
+    const [showFilters, setShowFilters] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [deleting, setDeleting] = useState(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [userToDelete, setUserToDelete] = useState(null);
 
-  const navigate = useNavigate();
-  const { t } = useSettings(); 
-  
-  const userInfo = useMemo(() => localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')) : null, []);
-
-  // --- 1. & 2. Performance & Fetching Logic ---
-  const fetchUsers = useCallback(async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data } = await api.get('/api/users/');
-        setUsers(data);
-      } catch (err) {
-        console.error("Fetch Error:", err);
-        setError(err.response?.data?.detail || "Failed to load users");
-      } finally {
-        setLoading(false);
-      }
+    const fetchUsers = useCallback(async (page = 1) => {
+        setLoading(true);
+        try {
+            const { data } = await api.get(`/api/users/?page=${page}`);
+            
+            let userData = [];
+            
+            if (Array.isArray(data)) {
+                userData = data;
+            } else if (data.results && Array.isArray(data.results)) {
+                userData = data.results;
+                setCurrentPage(page);
+                setTotalPages(Math.ceil((data.count || 0) / 10));
+            } else if (data.users && Array.isArray(data.users)) {
+                userData = data.users;
+                setCurrentPage(data.page || 1);
+                setTotalPages(data.pages || 1);
+            } else {
+                userData = [];
+            }
+            
+            setUsers(userData);
+        } catch (error) {
+            console.error('Fetch users error:', error);
+            const errorMsg = error.response?.data?.detail || 'Failed to load users';
+            toast.error(errorMsg);
+            setUsers([]);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
-  useEffect(() => {
-    if (userInfo && userInfo.isAdmin) {
-        fetchUsers();
-    } else {
-        navigate('/login');
-    }
-  }, [navigate, userInfo, fetchUsers]);
+    useEffect(() => {
+        fetchUsers(currentPage);
+    }, [fetchUsers, currentPage]);
 
-  // --- Delete Handler ---
-  const deleteHandler = async (id) => {
-    if(window.confirm(t('confirmDeleteUser') || 'Are you sure you want to delete this user?')) {
+    const handleDeleteClick = useCallback((user) => {
+        setUserToDelete(user);
+        setShowDeleteModal(true);
+    }, []);
+
+    const handleDeleteConfirm = useCallback(async () => {
+        if (!userToDelete) return;
+
+        setDeleting(userToDelete.id || userToDelete._id);
+        setShowDeleteModal(false);
+
         try {
-            await api.delete(`/api/users/delete/${id}/`);
+            await api.delete(`/api/users/delete/${userToDelete.id || userToDelete._id}/`);
             
-            setUsers(prevUsers => prevUsers.filter(user => user.id !== id));
-            alert(t('userDeleted') || "User Deleted Successfully");
+            toast.success('User deleted successfully!', {
+                icon: '🗑️',
+                duration: 2000,
+            });
+            
+            fetchUsers(currentPage);
         } catch (error) {
-            console.error(error);
-            alert("Error deleting user. check console.");
+            console.error('Delete user error:', error);
+            const errorMsg = error.response?.data?.detail || 'Failed to delete user';
+            toast.error(errorMsg);
+        } finally {
+            setDeleting(null);
+            setUserToDelete(null);
         }
-    }
-  };
+    }, [userToDelete, currentPage, fetchUsers]);
 
-  // --- 2. Advanced Filtering (Memoized for Performance) ---
-  const filteredUsers = useMemo(() => {
-      return users.filter(user => {
-          const matchesSearch = 
-            user.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-            user.email?.toLowerCase().includes(searchQuery.toLowerCase());
-
-          if (!matchesSearch) return false;
-
-          const userType = user.profile?.user_type || (user.isAdmin ? 'admin' : 'customer');
-          
-          if (filterType === 'vendor') return userType === 'vendor';
-          return userType === 'customer' || userType === 'admin'; 
-      });
-  }, [users, filterType, searchQuery]);
-
-  return (
-    <div className="min-h-screen pt-28 pb-10 px-4 md:px-6 bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
-      <Meta title={t('userList') || "Users List"} />
-      <div className="max-w-7xl mx-auto">
-        
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-            <h1 className="text-3xl font-black text-gray-900 dark:text-white flex items-center gap-3 uppercase tracking-tight">
-                <span className="p-3 bg-primary/10 text-primary rounded-2xl"><FaUsersCog /></span> 
-                {t('usersManagement') || "Users Management"}
-                {!loading && <span className="text-sm text-gray-400 font-medium">({filteredUsers.length})</span>}
-            </h1>
+    const handleToggleAdmin = useCallback(async (userId, currentStatus) => {
+        try {
+            await api.put(`/api/users/update/${userId}/`, {
+                is_admin: !currentStatus
+            });
             
-            {/* refreash but*/}
-            <button 
-                onClick={fetchUsers} 
-                className="p-3 bg-white dark:bg-white/5 rounded-xl shadow-sm hover:shadow-md transition text-gray-500 hover:text-primary"
-                title="Refresh List"
-            >
-                <FaSync className={loading ? "animate-spin" : ""} />
-            </button>
-        </div>
+            toast.success(`User ${!currentStatus ? 'promoted to' : 'removed from'} admin!`, {
+                icon: !currentStatus ? '⬆️' : '⬇️',
+                duration: 2000,
+            });
+            
+            fetchUsers(currentPage);
+        } catch (error) {
+            console.error('Toggle admin error:', error);
+            const errorMsg = error.response?.data?.detail || 'Failed to update user';
+            toast.error(errorMsg);
+        }
+    }, [currentPage, fetchUsers]);
 
-        {/* Controls Section: Tabs & Search */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8 items-center">
-            {/* Tabs */}
-            <div className="flex bg-gray-200 dark:bg-gray-800 p-1 rounded-2xl w-full md:w-auto md:min-w-[300px]">
-                <button 
-                    onClick={() => setFilterType('customer')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
-                        filterType === 'customer' 
-                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-md' 
-                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
+    // Filter users
+    const filteredUsers = users.filter(user => {
+        const matchesSearch = searchTerm === '' || 
+            (user.name || user.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+        const isAdmin = user.isAdmin || user.is_admin;
+        const isVendor = user.profile?.user_type === 'vendor' || user.user_type === 'vendor';
+        
+        const matchesRole = filterRole === 'all' || 
+            (filterRole === 'admin' && isAdmin) ||
+            (filterRole === 'vendor' && isVendor) ||
+            (filterRole === 'customer' && !isAdmin && !isVendor);
+
+        return matchesSearch && matchesRole;
+    });
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center pt-28">
+                <div className="text-center">
+                    <FaSpinner className="animate-spin text-5xl text-primary mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400 font-medium">Loading users...</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-28 pb-12">
+            <Meta title="User Management - Admin" />
+            
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                {/* Header */}
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4"
                 >
-                    <FaUser /> {t('customers') || "Customers"}
-                </button>
+                    <div>
+                        <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">
+                            User Management
+                        </h1>
+                        <p className="text-gray-600 dark:text-gray-400">
+                            Monitor and manage user accounts and permissions.
+                        </p>
+                    </div>
+                    <div className="flex items-center">
+                        <span className="px-5 py-2.5 bg-white dark:bg-gray-800 rounded-xl text-sm font-bold text-gray-900 dark:text-white border border-gray-200 dark:border-white/10 shadow-sm w-full md:w-auto text-center">
+                            <span className="text-primary mr-2">{filteredUsers.length}</span> 
+                            Total Users
+                        </span>
+                    </div>
+                </motion.div>
 
-                <button 
-                    onClick={() => setFilterType('vendor')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
-                        filterType === 'vendor' 
-                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-md' 
-                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
+                {/* Search and Filter Bar */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 p-4 sm:p-6 mb-8"
                 >
-                    <FaStore /> {t('vendors') || "Vendors"}
-                </button>
-            </div>
-
-            {/* Search Bar (New Feature) */}
-            <div className="relative w-full md:flex-1">
-                <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input 
-                    type="text" 
-                    placeholder="Search by name or email..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-white/5 pl-10 pr-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-primary/50 transition shadow-sm text-sm font-bold"
-                />
-            </div>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 p-4 rounded-xl mb-6 text-center font-bold">
-                {error}
-            </div>
-        )}
-
-        {/* Content */}
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-          </div>
-        ) : (
-          <>
-            {/* Mobile Cards */}
-            <div className="md:hidden space-y-4">
-                {filteredUsers.length === 0 ? (
-                    <div className="text-center text-gray-500 py-10 font-bold bg-white dark:bg-white/5 rounded-2xl border border-dashed border-gray-300">No users found</div>
-                ) : (
-                    filteredUsers.map((user) => (
-                        <div key={user.id} className="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-white/5 shadow-sm relative hover:shadow-md transition">
-                            <div className="flex items-center gap-4 mb-4">
-                                <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-full flex items-center justify-center font-black text-lg text-gray-600 dark:text-gray-300 uppercase">
-                                    {user.name ? user.name[0] : 'U'}
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-gray-900 dark:text-white text-lg">{user.name}</h3>
-                                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
-                                        user.isAdmin ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400'
-                                    }`}>
-                                        {user.isAdmin ? 'Admin' : (user.profile?.user_type || 'Customer')}
-                                    </span>
-                                </div>
+                    <div className="flex flex-col md:flex-row gap-4">
+                        {/* Search */}
+                        <div className="flex-1 relative">
+                            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search users by name or email..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-12 pr-12 py-3.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white transition-all"
+                            />
+                            {searchTerm && (
                                 <button 
-                                    onClick={() => deleteHandler(user.id)} 
-                                    className="absolute top-5 right-5 text-red-400 hover:text-red-600 p-2 bg-red-50 dark:bg-red-900/10 rounded-lg transition"
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-red-500 transition-colors"
                                 >
-                                    <FaTrash size={14} />
+                                    <FaTimes />
                                 </button>
-                            </div>
-
-                            <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400 font-medium bg-gray-50 dark:bg-gray-900/50 p-3 rounded-2xl border border-gray-100 dark:border-white/5">
-                                <div className="flex items-center gap-2 overflow-hidden">
-                                    <FaEnvelope className="text-gray-400 flex-shrink-0" />
-                                    <a href={`mailto:${user.email}`} className="hover:text-primary truncate">{user.email}</a>
-                                </div>
-                                <div className="flex items-center gap-2 font-mono text-xs">
-                                    <FaIdBadge className="text-gray-400 flex-shrink-0" />
-                                    <span className="truncate">ID: {user.id}</span>
-                                </div>
-                            </div>
+                            )}
                         </div>
-                    ))
-                )}
+
+                        {/* Filter Button */}
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className={`flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-all active:scale-95 ${
+                                showFilters
+                                    ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                                    : 'bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700'
+                            }`}
+                        >
+                            <FaFilter />
+                            <span>Filters</span>
+                        </button>
+                    </div>
+
+                    {/* Filter Options */}
+                    <AnimatePresence>
+                        {showFilters && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
+                                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                className="overflow-hidden border-t border-gray-100 dark:border-white/10"
+                            >
+                                <div className="pt-4">
+                                    <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
+                                        Filter by Role:
+                                    </p>
+                                    <div className="grid grid-cols-2 md:flex flex-wrap gap-2">
+                                        {[
+                                            { value: 'all', label: 'All Users' },
+                                            { value: 'admin', label: 'Admins' },
+                                            { value: 'vendor', label: 'Vendors' },
+                                            { value: 'customer', label: 'Customers' },
+                                        ].map((filter) => (
+                                            <button
+                                                key={filter.value}
+                                                onClick={() => setFilterRole(filter.value)}
+                                                className={`px-4 py-2.5 md:py-2 rounded-xl text-sm font-bold transition-colors text-center ${
+                                                    filterRole === filter.value
+                                                        ? 'bg-primary text-white'
+                                                        : 'bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                                }`}
+                                            >
+                                                {filter.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
+
+                {/* Users Data */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                >
+                    {filteredUsers.length > 0 ? (
+                        <>
+                            {/* Desktop View (Table) */}
+                            <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden mb-6">
+                                <table className="w-full">
+                                    <thead className="bg-gray-50 dark:bg-gray-900/50">
+                                        <tr>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Role</th>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Joined</th>
+                                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                                        {filteredUsers.map((user, index) => {
+                                            const isDeleting = deleting === (user.id || user._id);
+                                            const isAdmin = user.isAdmin || user.is_admin;
+                                            const isVendor = user.profile?.user_type === 'vendor' || user.user_type === 'vendor';
+
+                                            return (
+                                                <motion.tr
+                                                    key={user.id || user._id}
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: 0.05 * index }}
+                                                    className={`hover:bg-gray-50/80 dark:hover:bg-white/5 transition-colors group ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
+                                                >
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center text-sm font-bold text-primary">
+                                                                {(user.name || user.username || 'U').charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <span className="font-bold text-gray-900 dark:text-white">
+                                                                {user.name || user.username || 'Unknown'}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className="text-sm text-gray-600 dark:text-gray-400">{user.email}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {isAdmin ? (
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400">
+                                                                <FaUserShield /> Admin
+                                                            </span>
+                                                        ) : isVendor ? (
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400">
+                                                                <FaStore /> Vendor
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                                                                <FaUser /> Customer
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                                                            {new Date(user.date_joined || user.dateJoined || Date.now()).toLocaleDateString()}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                                                        <div className="flex items-center justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                                                            <button
+                                                                onClick={() => handleToggleAdmin(user.id || user._id, isAdmin)}
+                                                                className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors ${
+                                                                    isAdmin
+                                                                        ? 'bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-500/20'
+                                                                        : 'bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-500/20'
+                                                                }`}
+                                                            >
+                                                                {isAdmin ? 'Remove Admin' : 'Make Admin'}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteClick(user)}
+                                                                disabled={isDeleting}
+                                                                className="p-2.5 bg-gray-50 dark:bg-gray-700 text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                                                            >
+                                                                {isDeleting ? <FaSpinner className="animate-spin" /> : <FaTrash />}
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </motion.tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Mobile View (Cards) */}
+                            <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                {filteredUsers.map((user, index) => {
+                                    const isDeleting = deleting === (user.id || user._id);
+                                    const isAdmin = user.isAdmin || user.is_admin;
+                                    const isVendor = user.profile?.user_type === 'vendor' || user.user_type === 'vendor';
+
+                                    return (
+                                        <motion.div
+                                            key={user.id || user._id}
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ delay: 0.05 * index }}
+                                            className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 p-5 flex flex-col gap-4 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
+                                        >
+                                            <div className="flex justify-between items-start gap-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-12 h-12 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center text-lg font-bold text-primary shrink-0">
+                                                        {(user.name || user.username || 'U').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-bold text-gray-900 dark:text-white text-lg line-clamp-1">
+                                                            {user.name || user.username || 'Unknown'}
+                                                        </h3>
+                                                        <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                                            <FaEnvelope className="text-gray-400" />
+                                                            <span className="line-clamp-1 break-all">{user.email}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between border-t border-b border-gray-100 dark:border-white/5 py-3">
+                                                <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+                                                    <FaCalendarAlt className="text-gray-400" />
+                                                    {new Date(user.date_joined || user.dateJoined || Date.now()).toLocaleDateString()}
+                                                </div>
+                                                <div>
+                                                    {isAdmin ? (
+                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400">
+                                                            <FaUserShield /> Admin
+                                                        </span>
+                                                    ) : isVendor ? (
+                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400">
+                                                            <FaStore /> Vendor
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                                                            <FaUser /> Customer
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleToggleAdmin(user.id || user._id, isAdmin)}
+                                                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
+                                                        isAdmin
+                                                            ? 'bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100'
+                                                            : 'bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-100'
+                                                    }`}
+                                                >
+                                                    {isAdmin ? 'Remove Admin' : 'Make Admin'}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteClick(user)}
+                                                    disabled={isDeleting}
+                                                    className="px-4 py-2.5 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors disabled:opacity-50 flex items-center justify-center"
+                                                >
+                                                    {isDeleting ? <FaSpinner className="animate-spin" /> : <FaTrash />}
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Pagination (Common for both views) */}
+                            {totalPages > 1 && (
+                                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 p-4 flex justify-center">
+                                    <Paginate
+                                        page={currentPage}
+                                        pages={totalPages}
+                                        onPageChange={setCurrentPage}
+                                    />
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 p-16 text-center">
+                            <div className="w-24 h-24 bg-gray-50 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <FaUsers className="text-4xl text-gray-400 dark:text-gray-500" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                                No users found
+                            </h3>
+                            <p className="text-gray-600 dark:text-gray-400 max-w-sm mx-auto">
+                                {searchTerm || filterRole !== 'all'
+                                    ? 'We couldn\'t find any users matching your current search or filter criteria.'
+                                    : 'There are no users registered in the system yet.'}
+                            </p>
+                        </div>
+                    )}
+                </motion.div>
             </div>
 
-            {/* Desktop Table */}
-            <div className="hidden md:block bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                <thead>
-                    <tr className="bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-gray-400 uppercase text-xs font-bold tracking-wider">
-                        <th className="p-6 pl-8">User</th>
-                        <th className="p-6">Email</th>
-                        <th className="p-6 text-center">Type</th> 
-                        <th className="p-6 text-center">Admin</th>
-                        <th className="p-6 text-right pr-8">Action</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-white/5">
-                    {filteredUsers.length === 0 ? (
-                        <tr><td colSpan="6" className="p-10 text-center font-bold text-gray-400">No users match your search.</td></tr>
-                    ) : (
-                        filteredUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition duration-200 group">
-                            <td className="p-6 pl-8">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center font-bold text-gray-600 dark:text-gray-300 uppercase shadow-sm">
-                                        {user.name ? user.name[0] : 'U'}
-                                    </div>
-                                    <span className="font-bold text-gray-900 dark:text-white">{user.name}</span>
-                                </div>
-                            </td>
-                            <td className="p-6 font-medium text-gray-600 dark:text-gray-400">
-                                <a href={`mailto:${user.email}`} className="hover:text-primary transition">{user.email}</a>
-                            </td>
-                            <td className="p-6 text-center">
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                    (user.profile?.type === 'vendor') ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400'
-                                }`}>
-                                    {user.profile?.user_type || 'Customer'}
-                                </span>
-                            </td>
-                            <td className="p-6 text-center">
-                                {user.isAdmin 
-                                    ? <FaCheck className="text-green-500 mx-auto bg-green-100 dark:bg-green-500/20 p-1 rounded-full text-xl"/> 
-                                    : <FaTimes className="text-gray-300 dark:text-gray-600 mx-auto"/>
-                                }
-                            </td>
-                            <td className="p-6 text-right pr-8">
-                                <button 
-                                    onClick={() => deleteHandler(user.id)} 
-                                    className="text-red-400 hover:text-red-600 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/30 p-2.5 rounded-xl transition shadow-sm opacity-0 group-hover:opacity-100"
-                                    title={t('delete')}
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {showDeleteModal && userToDelete && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowDeleteModal(false)}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl z-10 p-8 text-center"
+                        >
+                            <div className="w-20 h-20 bg-red-50 dark:bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <FaExclamationTriangle className="text-4xl text-red-500" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                                Delete User?
+                            </h3>
+                            <p className="text-gray-600 dark:text-gray-400 mb-8">
+                                Are you sure you want to delete user <span className="font-bold text-gray-900 dark:text-white">"{userToDelete.name || userToDelete.username}"</span>? This action is permanent and cannot be undone.
+                            </p>
+                            <div className="flex flex-col-reverse sm:flex-row gap-3">
+                                <button
+                                    onClick={() => setShowDeleteModal(false)}
+                                    className="w-full sm:w-1/2 px-4 py-3.5 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                                 >
-                                    <FaTrash size={14} />
+                                    Cancel
                                 </button>
-                            </td>
-                        </tr>
-                        ))
-                    )}
-                </tbody>
-                </table>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
+                                <button
+                                    onClick={handleDeleteConfirm}
+                                    className="w-full sm:w-1/2 flex items-center justify-center gap-2 px-4 py-3.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all active:scale-95"
+                                >
+                                    <FaTrash />
+                                    Delete
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
 };
 
 export default UserListScreen;

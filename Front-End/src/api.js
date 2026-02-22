@@ -1,6 +1,5 @@
 import axios from "axios";
 
-
 const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/";
 
 const api = axios.create({
@@ -10,15 +9,14 @@ const api = axios.create({
   },
 });
 
-// Interceptor 
+// Attach the Bearer token from localStorage on every request
 api.interceptors.request.use(
   (config) => {
-    const userInfo = localStorage.getItem("userInfo") 
-      ? JSON.parse(localStorage.getItem("userInfo")) 
+    const userInfo = localStorage.getItem("userInfo")
+      ? JSON.parse(localStorage.getItem("userInfo"))
       : null;
-      
-    const token = userInfo?.token;
 
+    const token = userInfo?.token;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -28,9 +26,9 @@ api.interceptors.request.use(
 );
 
 export const getImageUrl = (imgPath) => {
-  if (!imgPath) return "/placeholder.jpg"; 
-  if (imgPath.startsWith("http")) return imgPath; 
-  
+  if (!imgPath) return "/placeholder.jpg";
+  if (imgPath.startsWith("http")) return imgPath;
+
   const cleanPath = imgPath.startsWith("/") ? imgPath.slice(1) : imgPath;
   return `${BASE_URL}${cleanPath}`;
 };
@@ -42,23 +40,23 @@ export const ENDPOINTS = {
   USER_PROFILE: "api/users/profile/",
   PROFILE_UPDATE: "api/users/profile/update/",
   SELLER_ORDERS: "api/users/seller/orders/",
-  
+
   // Products
   PRODUCTS: "api/products/",
   TOP_PRODUCTS: "api/products/top/",
   MY_PRODUCTS: "api/products/myproducts/",
   PRODUCT_DETAILS: (id) => `api/products/${id}/`,
-  CREATE_PRODUCT: "api/products/create/", 
+  CREATE_PRODUCT: "api/products/create/",
   UPDATE_PRODUCT: (id) => `api/products/update/${id}/`,
   DELETE_PRODUCT: (id) => `api/products/delete/${id}/`,
   DELETE_GALLERY_IMAGE: (id) => `api/products/delete-image/${id}/`,
-  
+
   // Categories & Tags
   CATEGORIES: "api/categories/",
-  CREATE_CATEGORY: 'api/categories/create/',
+  CREATE_CATEGORY: "api/categories/create/",
   UPDATE_CATEGORY: (id) => `api/categories/update/${id}/`,
   DELETE_CATEGORY: (id) => `api/categories/delete/${id}/`,
-  
+
   TAGS: "api/tags/",
   CREATE_TAG: "api/tags/create/",
   UPDATE_TAG: (id) => `api/tags/update/${id}/`,
@@ -74,21 +72,27 @@ export const ENDPOINTS = {
   DELETE_ORDER: (id) => `api/orders/delete/${id}/`,
   PAY_ORDER: (id) => `api/orders/${id}/pay/`,
   DELIVER_ORDER: (id) => `api/orders/${id}/deliver/`,
-  
+
   // Dashboard
-  DASHBOARD_STATS: 'api/dashboard/stats/',
+  DASHBOARD_STATS: "api/dashboard/stats/",
+
+  // Store Settings
+  // GET  → public (anyone can read settings for cart/checkout calculations)
+  // PUT  → admin only (updates persisted in the database)
+  STORE_SETTINGS: "api/settings/",
+  UPDATE_STORE_SETTINGS: "api/settings/update/",
 };
 
 export const apiService = {
   // --- Auth ---
   login: (data) => api.post(ENDPOINTS.LOGIN, data),
   register: (data) => api.post(ENDPOINTS.REGISTER, data),
-  getProfile: () => api.get(ENDPOINTS.USER_PROFILE), // 👈 مهم جداً
+  getProfile: () => api.get(ENDPOINTS.USER_PROFILE),
   updateProfile: (data) => api.put(ENDPOINTS.PROFILE_UPDATE, data),
   getSellerOrders: () => api.get(ENDPOINTS.SELLER_ORDERS),
 
   // --- Products ---
-  getProducts: (params) => api.get(ENDPOINTS.PRODUCTS, { params }), 
+  getProducts: (params) => api.get(ENDPOINTS.PRODUCTS, { params }),
   getTopProducts: () => api.get(ENDPOINTS.TOP_PRODUCTS),
   getMyProducts: () => api.get(ENDPOINTS.MY_PRODUCTS),
   getProductDetails: (id) => api.get(ENDPOINTS.PRODUCT_DETAILS(id)),
@@ -102,7 +106,7 @@ export const apiService = {
   createCategory: (data) => api.post(ENDPOINTS.CREATE_CATEGORY, data),
   updateCategory: (id, data) => api.put(ENDPOINTS.UPDATE_CATEGORY(id), data),
   deleteCategory: (id) => api.delete(ENDPOINTS.DELETE_CATEGORY(id)),
-  
+
   getTags: () => api.get(ENDPOINTS.TAGS),
   createTag: (data) => api.post(ENDPOINTS.CREATE_TAG, data),
   updateTag: (id, data) => api.put(ENDPOINTS.UPDATE_TAG(id), data),
@@ -121,6 +125,21 @@ export const apiService = {
 
   // --- Dashboard ---
   getDashboardStats: () => api.get(ENDPOINTS.DASHBOARD_STATS),
+
+  // --- Store Settings ---
+  /**
+   * Fetch current store settings (tax_rate, shipping_cost, free_shipping_threshold).
+   * Public endpoint — no auth required.
+   */
+  getStoreSettings: () => api.get(ENDPOINTS.STORE_SETTINGS),
+
+  /**
+   * Persist updated settings to the database.
+   * Admin-only endpoint. Accepts partial payloads.
+   *
+   * @param {Object} data - e.g. { tax_rate: "0.1000", shipping_cost: "75.00" }
+   */
+  updateStoreSettings: (data) => api.put(ENDPOINTS.UPDATE_STORE_SETTINGS, data),
 };
 
 export const links = {
@@ -128,11 +147,5 @@ export const links = {
   instagram: "https://www.instagram.com/YourProfile",
   whatsapp: "https://wa.me/YourNumber",
 };
-
-export const cartinfo = {
-   TAX_RATE : 0.05,
-   FREE_SHIPPING_THRESHOLD : 100,
-   SHIPPING_COST : 10,
-}
 
 export default api;

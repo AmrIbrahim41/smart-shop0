@@ -1,200 +1,566 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api, { ENDPOINTS } from '../../api';
-import { FaTrash, FaCalendarAlt, FaUser, FaClipboardList, FaCheck, FaTimes, FaSync } from 'react-icons/fa';
+/**
+ * OrderListScreen.jsx
+ *
+ * Admin Order Management — Fully Optimized UI/UX for Mobile & Desktop
+ */
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    FaSearch, FaSpinner, FaCheckCircle, FaTruck,
+    FaEye, FaShoppingCart, FaExclamationTriangle,
+    FaSync, FaTimes, FaMoneyBillWave, FaCalendarAlt,
+    FaUser, FaHashtag, FaFilter, FaTimesCircle
+} from 'react-icons/fa';
+import api from '../../api';
+import toast from 'react-hot-toast';
 import Meta from '../../components/tapheader/Meta';
-import { useSettings } from '../../context/SettingsContext';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+const fmtDate = (dateStr) => {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+};
+
+const orderId = (order) => order.id || order._id;
+
+const customerName = (order) =>
+    order.user?.name || order.user?.username || order.user?.email || 'Guest';
+
+const customerInitial = (order) => customerName(order).charAt(0).toUpperCase();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+
+const FILTER_TABS = [
+    { value: 'all',       label: 'All Orders' },
+    { value: 'paid',      label: 'Paid' },
+    { value: 'unpaid',    label: 'Unpaid' },
+    { value: 'delivered', label: 'Delivered' },
+    { value: 'pending',   label: 'Pending Delivery' },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Status Badges (For Desktop Table)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PaidBadge = ({ order, onMarkPaid, updating }) => {
+    const id = orderId(order);
+    const isBusy = updating === id;
+
+    if (order.is_paid) {
+        return (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 whitespace-nowrap">
+                <FaCheckCircle />
+                {fmtDate(order.paid_at)}
+            </span>
+        );
+    }
+    return (
+        <button
+            onClick={() => onMarkPaid(id)}
+            disabled={isBusy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-500/30 transition-colors disabled:opacity-50 whitespace-nowrap"
+        >
+            {isBusy ? <FaSpinner className="animate-spin" /> : <><FaMoneyBillWave /> Mark Paid</>}
+        </button>
+    );
+};
+
+const DeliveredBadge = ({ order, onMarkDelivered, updating }) => {
+    const id = orderId(order);
+    const isBusy = updating === id;
+
+    if (order.is_delivered) {
+        return (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 whitespace-nowrap">
+                <FaTruck />
+                {fmtDate(order.delivered_at)}
+            </span>
+        );
+    }
+    return (
+        <button
+            onClick={() => onMarkDelivered(id)}
+            disabled={isBusy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 whitespace-nowrap"
+        >
+            {isBusy ? <FaSpinner className="animate-spin" /> : <><FaTruck /> Mark Delivered</>}
+        </button>
+    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Summary Bar
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SummaryBar = ({ orders }) => {
+    const paidCount      = orders.filter(o => o.is_paid).length;
+    const deliveredCount = orders.filter(o => o.is_delivered).length;
+    const totalRevenue   = orders
+        .filter(o => o.is_paid)
+        .reduce((sum, o) => sum + Number(o.total_price || 0), 0);
+
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            {[
+                { label: 'Total Orders',     value: orders.length,                       color: 'text-gray-900 dark:text-white', bg: 'bg-gray-50 dark:bg-gray-700/50' },
+                { label: 'Paid Orders',      value: `${paidCount} / ${orders.length}`,   color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-500/10' },
+                { label: 'Total Revenue',    value: `$${totalRevenue.toFixed(2)}`,        color: 'text-primary', bg: 'bg-primary/10 dark:bg-primary/20' },
+            ].map(({ label, value, color, bg }) => (
+                <div
+                    key={label}
+                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 p-6 flex items-center justify-between sm:block sm:text-center"
+                >
+                    <div className="sm:hidden text-sm font-bold text-gray-500 dark:text-gray-400">{label}</div>
+                    <div>
+                        <p className={`text-2xl sm:text-3xl font-black ${color}`}>{value}</p>
+                        <p className="hidden sm:block text-sm font-bold text-gray-500 dark:text-gray-400 mt-1">{label}</p>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Component
+// ─────────────────────────────────────────────────────────────────────────────
 
 const OrderListScreen = () => {
-    // --- State Management ---
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [orders, setOrders]           = useState([]);
+    const [loading, setLoading]         = useState(true);
+    const [error, setError]             = useState(null);
+    const [searchTerm, setSearchTerm]   = useState('');
+    const [filterStatus, setFilterStatus] = useState('all');
+    const [showFilters, setShowFilters] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages]   = useState(1);
+    const [updating, setUpdating]       = useState(null);
 
-    const navigate = useNavigate();
-    const { t } = useSettings();
-
-    // --- 1. & 2. Performance & Fetching Logic ---
-    const fetchOrders = useCallback(async () => {
+    const fetchOrders = useCallback(async (page = 1) => {
         setLoading(true);
         setError(null);
         try {
-            const { data } = await api.get(ENDPOINTS.ORDERS_LIST);
-            setOrders(data);
+            const { data } = await api.get(`api/orders/?page=${page}`);
+            if (Array.isArray(data)) {
+                setOrders(data);
+                setTotalPages(1);
+            } else if (data.orders) {
+                setOrders(data.orders);
+                setCurrentPage(data.page || 1);
+                setTotalPages(data.pages || 1);
+            } else {
+                setOrders([]);
+            }
         } catch (err) {
-            console.error("Fetch error:", err);
-            setError(err.response && err.response.data.message ? err.response.data.message : err.message);
+            console.error('Fetch orders error:', err);
+            const msg = err.response?.data?.detail || 'Failed to load orders';
+            toast.error(msg);
+            setError(msg);
+            setOrders([]);
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchOrders();
-    }, [fetchOrders]);
+        fetchOrders(currentPage);
+    }, [fetchOrders, currentPage]);
 
-    // --- Delete Handler ---
-    const deleteHandler = async (id) => {
-        if (window.confirm(t('confirmDeleteOrder') || 'Are you sure you want to delete this order?')) {
-            try {
-                await api.delete(ENDPOINTS.DELETE_ORDER(id));
-
-                setOrders((prevOrders) => prevOrders.filter((order) => (order._id || order.id) !== id));
-            } catch (error) {
-                alert(t('errorDelete') || "Error deleting order");
-            }
+    const handleMarkDelivered = useCallback(async (id) => {
+        setUpdating(id);
+        try {
+            await api.put(`api/orders/${id}/deliver/`);
+            toast.success('Order marked as delivered', { icon: '📦' });
+            fetchOrders(currentPage);
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Failed to update order');
+        } finally {
+            setUpdating(null);
         }
-    };
+    }, [currentPage, fetchOrders]);
 
-    // --- Helper for ID Extraction ---
-    const getOrderId = (order) => order._id || order.id;
+    const handleMarkPaid = useCallback(async (id) => {
+        setUpdating(id);
+        try {
+            await api.put(`api/orders/${id}/pay/`, {
+                paid_at: new Date().toISOString(),
+            });
+            toast.success('Order marked as paid', { icon: '💳' });
+            fetchOrders(currentPage);
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Failed to update order');
+        } finally {
+            setUpdating(null);
+        }
+    }, [currentPage, fetchOrders]);
+
+    const filteredOrders = useMemo(() => {
+        return orders.filter(order => {
+            const term = searchTerm.toLowerCase();
+            const matchesSearch = term === '' ||
+                String(orderId(order)).includes(term) ||
+                customerName(order).toLowerCase().includes(term);
+
+            const matchesStatus =
+                filterStatus === 'all'       ? true :
+                filterStatus === 'paid'      ? order.is_paid :
+                filterStatus === 'unpaid'    ? !order.is_paid :
+                filterStatus === 'delivered' ? order.is_delivered :
+                filterStatus === 'pending'   ? !order.is_delivered :
+                true;
+
+            return matchesSearch && matchesStatus;
+        });
+    }, [orders, searchTerm, filterStatus]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center pt-28">
+                <div className="text-center">
+                    <FaSpinner className="animate-spin text-5xl text-primary mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400 font-medium">Loading orders...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="min-h-screen pt-28 pb-10 px-4 md:px-6 bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
-            <Meta title={t('orderList') || "Orders List"} />
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-28 pb-12">
+            <Meta title="Order Management - Admin" />
 
-            <div className="max-w-7xl mx-auto">
-                {/* Header Section */}
-                <div className="flex justify-between items-center mb-10">
-                    <h1 className="text-3xl font-black text-gray-900 dark:text-white flex items-center gap-3 uppercase tracking-tight">
-                        <span className="p-3 bg-primary/10 text-primary rounded-2xl"><FaClipboardList /></span>
-                        {t('orders') || "Orders"}
-                        {!loading && <span className="text-sm opacity-50 font-medium">({orders.length})</span>}
-                    </h1>
-
-                    {/* referesh */}
-                    <button
-                        onClick={fetchOrders}
-                        className="p-3 bg-white dark:bg-white/5 rounded-xl shadow-sm hover:shadow-md transition text-gray-500 hover:text-primary"
-                        title="Refresh List"
-                    >
-                        <FaSync className={loading ? "animate-spin" : ""} />
-                    </button>
-                </div>
-
-                {/* Error State */}
-                {error && (
-                    <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-r" role="alert">
-                        <p className="font-bold">Error</p>
-                        <p>{error}</p>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                {/* Header */}
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4"
+                >
+                    <div>
+                        <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">
+                            Order Management
+                        </h1>
+                        <p className="text-gray-600 dark:text-gray-400">
+                            Monitor, update, and manage all customer orders.
+                        </p>
                     </div>
-                )}
-
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-                        <div className="text-primary font-bold animate-pulse">Loading Orders...</div>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <button
+                            onClick={() => fetchOrders(currentPage)}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-sm font-bold border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                        >
+                            <FaSync className={updating ? "animate-spin" : ""} /> Refresh
+                        </button>
+                        <span className="flex-1 md:flex-none px-5 py-2.5 bg-white dark:bg-gray-800 rounded-xl text-sm font-bold text-gray-900 dark:text-white border border-gray-200 dark:border-white/10 shadow-sm text-center whitespace-nowrap">
+                            <span className="text-primary mr-2">{filteredOrders.length}</span> Total
+                        </span>
                     </div>
-                ) : orders.length === 0 ? (
-                    <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl border border-dashed border-gray-300 dark:border-gray-700">
-                        <FaClipboardList className="mx-auto text-6xl text-gray-300 dark:text-gray-600 mb-4" />
-                        <h2 className="text-xl font-bold text-gray-500 dark:text-gray-400">No Orders Found</h2>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+                    <SummaryBar orders={orders} />
+                </motion.div>
+
+                {/* Search & Filters (Matching UserListScreen) */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 p-4 sm:p-6 mb-8"
+                >
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1 relative">
+                            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search by Order ID or Customer Name..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-12 pr-12 py-3.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white transition-all"
+                            />
+                            {searchTerm && (
+                                <button
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                >
+                                    <FaTimes />
+                                </button>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className={`flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-all active:scale-95 ${
+                                showFilters
+                                    ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                                    : 'bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700'
+                            }`}
+                        >
+                            <FaFilter />
+                            <span>Filters</span>
+                        </button>
                     </div>
-                ) : (
-                    <>
-                        {/* Mobile View (Cards) */}
-                        <div className="grid grid-cols-1 gap-4 md:hidden">
-                            {orders.map((order) => {
-                                const id = getOrderId(order);
-                                return (
-                                    <div key={id} className="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-white/5 shadow-sm relative group">
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div className="flex flex-col">
-                                                <span className="font-black text-gray-900 dark:text-white text-lg">ID: {id.toString().substring(0, 8)}</span>
-                                                <span className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                                                    <FaUser size={10} /> {order.user?.name || 'Guest'}
-                                                </span>
-                                            </div>
-                                            <span className="font-black text-primary text-xl">${order.totalPrice}</span>
-                                        </div>
 
-                                        <div className="flex gap-2 mb-4">
-                                            <StatusBadge isPositive={order.isPaid} labelPositive="PAID" labelNegative="NOT PAID" />
-                                            <StatusBadge isPositive={order.isDelivered} labelPositive="SENT" labelNegative="PENDING" isWarning={!order.isDelivered} />
-                                        </div>
-
-                                        <div className="flex justify-between items-center text-xs text-gray-400 border-t border-gray-100 dark:border-white/5 pt-3 mt-3">
-                                            <span className="flex items-center gap-1"><FaCalendarAlt /> {order.createdAt?.substring(0, 10)}</span>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => navigate(`/order/${id}`)} className="bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg text-gray-700 dark:text-white font-bold hover:bg-gray-200 transition">View</button>
-                                                <button onClick={() => deleteHandler(id)} className="bg-red-50 dark:bg-red-900/20 text-red-600 px-4 py-2 rounded-lg font-bold hover:bg-red-100 transition"><FaTrash /></button>
-                                            </div>
-                                        </div>
+                    <AnimatePresence>
+                        {showFilters && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
+                                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                className="overflow-hidden border-t border-gray-100 dark:border-white/10"
+                            >
+                                <div className="pt-4">
+                                    <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
+                                        Filter by Status:
+                                    </p>
+                                    <div className="grid grid-cols-2 md:flex flex-wrap gap-2">
+                                        {FILTER_TABS.map((tab) => (
+                                            <button
+                                                key={tab.value}
+                                                onClick={() => setFilterStatus(tab.value)}
+                                                className={`px-4 py-2.5 md:py-2 rounded-xl text-sm font-bold transition-colors text-center ${
+                                                    filterStatus === tab.value
+                                                        ? 'bg-primary text-white'
+                                                        : 'bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                                }`}
+                                            >
+                                                {tab.label}
+                                            </button>
+                                        ))}
                                     </div>
-                                );
-                            })}
-                        </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
 
-                        {/* Desktop View (Table) */}
-                        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-xl overflow-hidden">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-gray-400 uppercase text-xs font-extrabold tracking-wider">
-                                        <th className="p-6 pl-8">ID</th>
-                                        <th className="p-6">User</th>
-                                        <th className="p-6">Date</th>
-                                        <th className="p-6">Total</th>
-                                        <th className="p-6 text-center">Paid</th>
-                                        <th className="p-6 text-center">Delivered</th>
-                                        <th className="p-6 text-right pr-8">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 dark:divide-white/5 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    {orders.map((order) => {
-                                        const id = getOrderId(order);
-                                        return (
-                                            <tr key={id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition duration-200 group">
-                                                <td className="p-6 pl-8 font-bold text-gray-900 dark:text-white">#{id.toString().substring(0, 8)}..</td>
-                                                <td className="p-6 flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-xs font-bold text-gray-500">
-                                                        {order.user?.name ? order.user.name.charAt(0).toUpperCase() : 'U'}
-                                                    </div>
-                                                    {order.user?.name || 'Unknown'}
-                                                </td>
-                                                <td className="p-6 text-gray-500">{order.createdAt?.substring(0, 10)}</td>
-                                                <td className="p-6 font-bold text-primary text-base">${order.totalPrice}</td>
-                                                <td className="p-6 text-center">
-                                                    {order.isPaid
-                                                        ? <FaCheck className="text-green-500 mx-auto text-lg" />
-                                                        : <FaTimes className="text-red-400 mx-auto text-lg opacity-50" />}
-                                                </td>
-                                                <td className="p-6 text-center">
-                                                    {order.isDelivered
-                                                        ? <FaCheck className="text-green-500 mx-auto text-lg" />
-                                                        : <FaTimes className="text-yellow-500 mx-auto text-lg opacity-50" />}
-                                                </td>
-                                                <td className="p-6 text-right pr-8">
-                                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                        <button onClick={() => navigate(`/order/${id}`)} className="bg-gray-100 dark:bg-white/10 hover:bg-primary hover:text-white text-gray-700 dark:text-white px-4 py-2 rounded-xl font-bold text-xs uppercase transition shadow-sm">
-                                                            Details
-                                                        </button>
-                                                        <button onClick={() => deleteHandler(id)} className="bg-red-50 dark:bg-red-900/10 hover:bg-red-500 hover:text-white text-red-600 dark:text-red-400 p-2 rounded-xl transition shadow-sm">
-                                                            <FaTrash size={14} />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                {error && (
+                    <div className="mb-8 flex items-center gap-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl px-6 py-5">
+                        <div className="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-500/20 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0 text-xl">
+                            <FaExclamationTriangle />
                         </div>
-                    </>
+                        <div>
+                            <p className="text-base font-bold text-red-700 dark:text-red-400">Failed to load orders</p>
+                            <p className="text-sm text-red-600 dark:text-red-300 mt-1">{error}</p>
+                        </div>
+                    </div>
                 )}
+
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                >
+                    {filteredOrders.length === 0 && !error ? (
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 p-16 text-center max-w-2xl mx-auto">
+                            <div className="w-24 h-24 bg-gray-50 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <FaShoppingCart className="text-4xl text-gray-400 dark:text-gray-500" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                                No orders found
+                            </h3>
+                            <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
+                                {searchTerm || filterStatus !== 'all'
+                                    ? 'We couldn\'t find any orders matching your criteria. Try adjusting your filters.'
+                                    : 'There are no orders in the system yet. They will appear here once customers start purchasing.'}
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Desktop View (Table) */}
+                            <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden mb-6">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[1000px]">
+                                        <thead className="bg-gray-50 dark:bg-gray-900/50">
+                                            <tr>
+                                                {['Order ID', 'Customer', 'Date', 'Total', 'Payment', 'Delivery', 'Actions'].map((h) => (
+                                                    <th key={h} className={`px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider ${h === 'Actions' ? 'text-right' : 'text-left'}`}>
+                                                        {h}
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                                            <AnimatePresence>
+                                                {filteredOrders.map((order, index) => {
+                                                    const id = orderId(order);
+                                                    return (
+                                                        <motion.tr
+                                                            key={id}
+                                                            initial={{ opacity: 0, x: -20 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            transition={{ delay: Math.min(index * 0.03, 0.3) }}
+                                                            className="hover:bg-gray-50/80 dark:hover:bg-white/5 transition-colors group"
+                                                        >
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <Link to={`/order/${id}`} className="text-sm font-bold text-primary hover:underline flex items-center gap-1">
+                                                                    <FaHashtag size={10} /> {id}
+                                                                </Link>
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
+                                                                        {customerInitial(order)}
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                                                        {customerName(order)}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                                                {fmtDate(order.created_at)}
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-base font-black text-gray-900 dark:text-white">
+                                                                ${Number(order.total_price || 0).toFixed(2)}
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <PaidBadge order={order} onMarkPaid={handleMarkPaid} updating={updating} />
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <DeliveredBadge order={order} onMarkDelivered={handleMarkDelivered} updating={updating} />
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                                                                <div className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                                                                    <Link to={`/order/${id}`} className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-primary hover:text-white text-gray-900 dark:text-white text-xs font-bold rounded-lg transition-colors">
+                                                                        <FaEye /> View
+                                                                    </Link>
+                                                                </div>
+                                                            </td>
+                                                        </motion.tr>
+                                                    );
+                                                })}
+                                            </AnimatePresence>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Mobile View (Cards) */}
+                            <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                {filteredOrders.map((order, index) => {
+                                    const id = orderId(order);
+                                    const isBusy = updating === id;
+                                    
+                                    return (
+                                        <motion.div
+                                            key={id}
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ delay: Math.min(index * 0.05, 0.3) }}
+                                            className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 p-5 flex flex-col gap-4"
+                                        >
+                                            {/* Card Header: ID & Price */}
+                                            <div className="flex justify-between items-start border-b border-gray-100 dark:border-white/5 pb-4">
+                                                <div>
+                                                    <Link to={`/order/${id}`} className="text-base font-bold text-primary flex items-center gap-1.5 mb-1">
+                                                        <FaHashtag size={12} /> {id}
+                                                    </Link>
+                                                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400">
+                                                        <FaCalendarAlt /> {fmtDate(order.created_at)}
+                                                    </div>
+                                                </div>
+                                                <div className="text-xl font-black text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 px-3 py-1 rounded-lg">
+                                                    ${Number(order.total_price || 0).toFixed(2)}
+                                                </div>
+                                            </div>
+
+                                            {/* Card Body: User Info */}
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-12 h-12 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center text-lg font-bold text-primary shrink-0">
+                                                    {customerInitial(order)}
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-gray-900 dark:text-white text-base line-clamp-1">
+                                                        {customerName(order)}
+                                                    </h3>
+                                                    <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                                                        <FaUser size={12} className="text-gray-400" /> Customer
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Card Footer: Status Badges & Actions */}
+                                            <div className="flex flex-col gap-3 pt-2">
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {order.is_paid ? (
+                                                        <div className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-100 dark:border-green-500/20">
+                                                            <FaCheckCircle /> Paid
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleMarkPaid(id)}
+                                                            disabled={isBusy}
+                                                            className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold bg-yellow-50 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-500/20 active:scale-95 transition-transform disabled:opacity-50"
+                                                        >
+                                                            {isBusy ? <FaSpinner className="animate-spin" /> : <><FaMoneyBillWave /> Mark Paid</>}
+                                                        </button>
+                                                    )}
+
+                                                    {order.is_delivered ? (
+                                                        <div className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20">
+                                                            <FaTruck /> Delivered
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleMarkDelivered(id)}
+                                                            disabled={isBusy}
+                                                            className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 active:scale-95 transition-transform disabled:opacity-50"
+                                                        >
+                                                            {isBusy ? <FaSpinner className="animate-spin" /> : <><FaTruck /> Mark Delivered</>}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                
+                                                <Link
+                                                    to={`/order/${id}`}
+                                                    className="w-full flex items-center justify-center gap-2 py-3 bg-gray-50 dark:bg-gray-900 hover:bg-primary hover:text-white text-gray-900 dark:text-white text-sm font-bold rounded-xl transition-colors active:scale-95"
+                                                >
+                                                    <FaEye /> View Full Order Details
+                                                </Link>
+                                            </div>
+                                        </motion.div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Shared Pagination Controls */}
+                            {totalPages > 1 && (
+                                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 p-4 flex justify-center mt-4">
+                                     <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                            disabled={currentPage === 1}
+                                            className="px-5 py-2.5 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-white/10 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors active:scale-95"
+                                        >
+                                            Previous
+                                        </button>
+                                        <span className="px-4 py-2 text-sm font-black text-gray-900 dark:text-white bg-primary/10 rounded-lg">
+                                            {currentPage} <span className="text-gray-500 font-bold mx-1">/</span> {totalPages}
+                                        </span>
+                                        <button
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                            disabled={currentPage === totalPages}
+                                            className="px-5 py-2.5 text-sm font-bold bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-white/10 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors active:scale-95"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </motion.div>
             </div>
         </div>
     );
 };
-
-const StatusBadge = ({ isPositive, labelPositive, labelNegative, isWarning }) => (
-    <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase flex items-center gap-1 ${isPositive
-            ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
-            : isWarning
-                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400'
-                : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
-        }`}>
-        {isPositive ? <FaCheck /> : <FaTimes />} {isPositive ? labelPositive : labelNegative}
-    </span>
-);
 
 export default OrderListScreen;

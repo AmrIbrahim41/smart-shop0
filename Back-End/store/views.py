@@ -18,7 +18,8 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.parsers import MultiPartParser, FormParser
+# تم إضافة JSONParser هنا
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser 
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
@@ -34,6 +35,7 @@ from .models import (
     ShippingAddress,
     CartItem,
     WishlistItem,
+    StoreSettings,
 )
 from .serializers import (
     CategorySerializer,
@@ -44,6 +46,7 @@ from .serializers import (
     OrderSerializer,
     CartItemSerializer,
     WishlistItemSerializer,
+    StoreSettingsSerializer,
 )
 
 # Initialize logger
@@ -59,10 +62,11 @@ logger = logging.getLogger(__name__)
 def get_products(request):
     """
     Get all products with filtering, search, and pagination.
-    Query params: keyword, category, page
+    Query params: keyword, category, stock_status, page
     """
     query = request.query_params.get("keyword")
     category_id = request.query_params.get("category")
+    stock_status = request.query_params.get("stock_status") # استلام فلتر المخزون
 
     # Optimize query with select_related and prefetch_related
     products = Product.objects.select_related("category", "user").prefetch_related(
@@ -83,8 +87,17 @@ def get_products(request):
         )
 
     # Category filter
-    if category_id:
+    if category_id and category_id != 'all':
         products = products.filter(category__id=category_id)
+
+    # Stock filter (فلتر المخزون الجديد)
+    if stock_status and stock_status != 'all':
+        if stock_status == 'in-stock':
+            products = products.filter(count_in_stock__gt=5)
+        elif stock_status == 'low-stock':
+            products = products.filter(count_in_stock__gt=0, count_in_stock__lte=5)
+        elif stock_status == 'out-of-stock':
+            products = products.filter(count_in_stock=0)
 
     # Order by creation date
     products = products.order_by("-created_at")
@@ -137,7 +150,8 @@ def get_product(request, pk):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])
+# تم إضافة JSONParser هنا لتقبل الدوال التي لا تحتوي على صور
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def create_product(request):
     """
     Create a new product.
@@ -147,7 +161,7 @@ def create_product(request):
     user = request.user
 
     # Validate required fields
-    required_fields = ["name", "price", "category", "countInStock"]
+    required_fields = ["name", "price", "category", "count_in_stock"]
     missing_fields = [field for field in required_fields if not data.get(field)]
     
     if missing_fields:
@@ -165,7 +179,7 @@ def create_product(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        count_in_stock = int(data.get("countInStock"))
+        count_in_stock = int(data.get("count_in_stock"))
         if count_in_stock < 0:
             return Response(
                 {"detail": "Stock count cannot be negative."},
@@ -249,9 +263,41 @@ def create_product(request):
         )
 
 
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_product_review(request, pk):
+    """Delete user's existing review for a product"""
+    user = request.user
+    product = get_object_or_404(Product, pk=pk)
+
+    try:
+        # البحث عن التقييم الخاص باليوزر وحذفه
+        review = product.reviews.get(user=user)
+        review.delete()
+
+        # إعادة حساب تقييم المنتج بعد الحذف
+        stats = product.reviews.aggregate(
+            avg_rating=Avg("rating"),
+            count=Count("id")
+        )
+
+        product.rating = stats["avg_rating"] or Decimal("0.00")
+        product.num_reviews = stats["count"] or 0
+        product.save()
+
+        logger.info(f"Review deleted for product {product.id} by user {user.id}")
+        return Response({"detail": "Review deleted successfully."})
+
+    except Review.DoesNotExist:
+        return Response(
+            {"detail": "You have not reviewed this product yet."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
 @api_view(["PUT"])
 @permission_classes([IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])
+# التعديل الرئيسي لحل مشكلة 415 هو إضافة JSONParser هنا
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def update_product(request, pk):
     """
     Update existing product.
@@ -296,8 +342,8 @@ def update_product(request, pk):
             else:
                 product.discount_price = None
 
-        if "countInStock" in data:
-            count_in_stock = int(data.get("countInStock"))
+        if "count_in_stock" in data:
+            count_in_stock = int(data.get("count_in_stock"))
             if count_in_stock < 0:
                 return Response(
                     {"detail": "Stock count cannot be negative."},
@@ -591,15 +637,6 @@ def delete_tag(request, pk):
     return Response({"detail": "Tag deleted successfully."})
 
 
-"""
-Store Views for Smart Shop E-commerce Platform - Part 2
-Orders, Reviews, Cart, Wishlist, and Dashboard
-"""
-
-# (Import statements from Part 1 apply here as well)
-# This is a continuation of store_views_part1.py
-
-
 # =============================================================================
 # ORDER VIEWS
 # =============================================================================
@@ -614,7 +651,7 @@ def add_order_items(request):
     """
     user = request.user
     data = request.data
-    order_items = data.get("orderItems")
+    order_items = data.get("order_items")
 
     if not order_items or len(order_items) == 0:
         return Response(
@@ -624,8 +661,8 @@ def add_order_items(request):
 
     # Validate decimal fields
     try:
-        tax_price = Decimal(str(data.get("taxPrice", "0.00")))
-        shipping_price = Decimal(str(data.get("shippingPrice", "0.00")))
+        tax_price = Decimal(str(data.get("tax_price", "0.00")))
+        shipping_price = Decimal(str(data.get("shipping_price", "0.00")))
         
         if tax_price < 0 or shipping_price < 0:
             return Response(
@@ -639,7 +676,7 @@ def add_order_items(request):
         )
 
     # Check for idempotency key to prevent duplicate orders
-    idempotency_key = data.get("idempotencyKey")
+    idempotency_key = data.get("idempotency_key")
     if idempotency_key:
         existing_order = Order.objects.filter(
             idempotency_key=idempotency_key
@@ -654,7 +691,7 @@ def add_order_items(request):
             )
 
     # Validate shipping address
-    shipping_address = data.get("shippingAddress")
+    shipping_address = data.get("shipping_address")
     if not shipping_address or not all([
         shipping_address.get("address"),
         shipping_address.get("city"),
@@ -669,7 +706,7 @@ def add_order_items(request):
         # 1. Create order
         order = Order.objects.create(
             user=user,
-            payment_method=data.get("paymentMethod", ""),
+            payment_method=data.get("payment_method", ""),
             tax_price=tax_price,
             shipping_price=shipping_price,
             total_price=Decimal("0.00"),  # Will be calculated
@@ -681,7 +718,7 @@ def add_order_items(request):
             order=order,
             address=shipping_address["address"],
             city=shipping_address["city"],
-            postal_code=shipping_address.get("postalCode", ""),
+            postal_code=shipping_address.get("postal_code", ""),
             country=shipping_address["country"],
             phone=shipping_address.get("phone", ""),
         )
@@ -1275,11 +1312,11 @@ def get_dashboard_stats(request):
     ]
 
     return Response({
-        "totalSales": str(total_sales),
-        "totalOrders": total_orders,
-        "totalProducts": total_products,
-        "totalUsers": total_users,
-        "salesChart": orders_data,
+        "total_sales": str(total_sales),
+        "total_orders": total_orders,
+        "total_products": total_products,
+        "total_users": total_users,
+        "sales_chart": orders_data,
     })
 
 
@@ -1319,3 +1356,62 @@ def export_orders_csv(request):
 
     logger.info(f"Orders CSV exported by admin user {request.user.id}")
     return response
+
+# =============================================================================
+# STORE SETTINGS VIEWS
+# =============================================================================
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def get_store_settings(request):
+    """
+    Return current store-wide settings (tax_rate, shipping_cost,
+    free_shipping_threshold).
+
+    Public endpoint — no auth required so the frontend can use these
+    values on the cart/checkout pages for unauthenticated users too.
+    The table row is created with safe defaults on first access.
+    """
+    settings_obj = StoreSettings.get_settings()
+    serializer = StoreSettingsSerializer(settings_obj)
+    return Response(serializer.data)
+
+
+@api_view(["PUT", "PATCH"])
+@permission_classes([IsAdminUser])
+def update_store_settings(request):
+    """
+    Update global store settings. Admin-only.
+
+    Accepts partial payloads (partial=True) so the admin can update
+    a single field without sending all fields.
+
+    Request body (all optional):
+        {
+            "tax_rate": "0.1000",
+            "shipping_cost": "75.00",
+            "free_shipping_threshold": "5000.00"
+        }
+
+    Returns the full updated settings object.
+    """
+    settings_obj = StoreSettings.get_settings()
+    serializer = StoreSettingsSerializer(
+        settings_obj, data=request.data, partial=True
+    )
+
+    if serializer.is_valid():
+        serializer.save()
+        logger.info(
+            "Store settings updated by admin user %s: %s",
+            request.user.id,
+            serializer.data,
+        )
+        return Response(serializer.data)
+
+    logger.warning(
+        "Store settings update failed for admin user %s: %s",
+        request.user.id,
+        serializer.errors,
+    )
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

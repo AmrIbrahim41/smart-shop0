@@ -1,6 +1,6 @@
 """
 Store Models for Smart Shop E-commerce Platform
-Includes: Categories, Tags, Products, Reviews, Orders, Cart, Wishlist
+Includes: Categories, Tags, Products, Reviews, Orders, Cart, Wishlist, StoreSettings
 """
 
 from django.db import models
@@ -51,7 +51,7 @@ class Tag(models.Model):
 
 class Product(models.Model):
     """Main product model with approval workflow"""
-    
+
     APPROVAL_CHOICES = (
         ("pending", "Pending"),
         ("approved", "Approved"),
@@ -60,8 +60,8 @@ class Product(models.Model):
 
     # Relationships
     user = models.ForeignKey(
-        User, 
-        on_delete=models.SET_NULL, 
+        User,
+        on_delete=models.SET_NULL,
         null=True,
         related_name="products"
     )
@@ -157,11 +157,6 @@ class Product(models.Model):
                     "discount_price": "Discount price must be less than regular price."
                 })
 
-    def save(self, *args, **kwargs):
-        """Override save to run full_clean validation"""
-        self.full_clean()
-        super().save(*args, **kwargs)
-
     def __str__(self):
         return self.name
 
@@ -239,7 +234,7 @@ class Review(models.Model):
 
 class Order(models.Model):
     """Customer orders"""
-    
+
     STATUS_CHOICES = (
         ("Pending", "Pending"),
         ("Processing", "Processing"),
@@ -441,3 +436,83 @@ class WishlistItem(models.Model):
 
     def __str__(self):
         return f"{self.product.name} (Wishlist of {self.user.username})"
+
+
+# =============================================================================
+# STORE SETTINGS MODEL (Singleton)
+# =============================================================================
+
+class StoreSettings(models.Model):
+    """
+    Singleton model for global store configuration.
+
+    Only one row (pk=1) should ever exist. Use the class method
+    `get_settings()` to retrieve or lazily create this row with
+    safe defaults.
+
+    All monetary fields use Decimal for precision.
+    """
+
+    # Tax applied as a multiplier, e.g. 0.08 = 8 %
+    tax_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        default=Decimal("0.0800"),
+        validators=[
+            MinValueValidator(Decimal("0.0000")),
+            MaxValueValidator(Decimal("1.0000")),
+        ],
+        help_text="Tax rate as a decimal, e.g. 0.08 for 8%"
+    )
+
+    # Flat shipping fee charged when order is below the free threshold
+    shipping_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("50.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Shipping cost in USD"
+    )
+
+    # Orders at or above this subtotal qualify for free shipping
+    free_shipping_threshold = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("10000.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Minimum subtotal for free shipping in USD"
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Store Settings"
+        verbose_name_plural = "Store Settings"
+
+    def __str__(self):
+        return "Store Settings"
+
+    def clean(self):
+        """Enforce singleton — only pk=1 is allowed."""
+        super().clean()
+        if not self.pk and StoreSettings.objects.exists():
+            raise ValidationError(
+                "Only one StoreSettings record is allowed. Edit the existing one."
+            )
+
+    @classmethod
+    def get_settings(cls):
+        """
+        Retrieve the singleton settings row, creating it with defaults if it
+        does not yet exist. Using get_or_create with pk=1 ensures we always
+        touch the same row and never race-create duplicates.
+        """
+        obj, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                "tax_rate": Decimal("0.0800"),
+                "shipping_cost": Decimal("50.00"),
+                "free_shipping_threshold": Decimal("10000.00"),
+            },
+        )
+        return obj

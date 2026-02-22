@@ -4,35 +4,55 @@ import { translations } from "../translations";
 const SettingsContext = createContext();
 
 export const SettingsProvider = ({ children }) => {
-  const [language, setLanguage] = useState(() => localStorage.getItem("lang") || "en");
-
-  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.lang = language;
-
-    if (language === 'ar') {
-      root.dir = 'rtl';
-    } else {
-      root.dir = 'ltr';
+  const [language, setLanguage] = useState(() => {
+    try {
+      return localStorage.getItem("lang") || "en";
+    } catch (error) {
+      console.error("Error reading language from localStorage:", error);
+      return "en";
     }
+  });
 
-    localStorage.setItem("lang", language);
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem("theme") || "dark";
+    } catch (error) {
+      console.error("Error reading theme from localStorage:", error);
+      return "dark";
+    }
+  });
 
-  
+  // Apply language settings
+  useEffect(() => {
+    try {
+      const root = document.documentElement;
+      root.lang = language;
+
+      if (language === 'ar') {
+        root.dir = 'rtl';
+      } else {
+        root.dir = 'ltr';
+      }
+
+      localStorage.setItem("lang", language);
+    } catch (error) {
+      console.error("Error applying language settings:", error);
+    }
   }, [language]);
 
+  // Apply theme settings
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
+    try {
+      const root = document.documentElement;
+      if (theme === "dark") {
+        root.classList.add("dark");
+      } else {
+        root.classList.remove("dark");
+      }
+      localStorage.setItem("theme", theme);
+    } catch (error) {
+      console.error("Error applying theme settings:", error);
     }
-    localStorage.setItem("theme", theme);
-
-
   }, [theme]);
 
   const toggleLanguage = useCallback(() => {
@@ -44,10 +64,15 @@ export const SettingsProvider = ({ children }) => {
   }, []);
 
   const t = useCallback((key) => {
-    if (translations[language] && translations[language][key]) {
-      return translations[language][key];
+    try {
+      if (translations[language] && translations[language][key]) {
+        return translations[language][key];
+      }
+      return key;
+    } catch (error) {
+      console.error("Translation error:", error);
+      return key;
     }
-    return key; 
   }, [language]);
 
   const value = useMemo(() => ({
@@ -66,5 +91,9 @@ export const SettingsProvider = ({ children }) => {
 };
 
 export const useSettings = () => {
-  return useContext(SettingsContext);
+  const context = useContext(SettingsContext);
+  if (!context) {
+    throw new Error('useSettings must be used within a SettingsProvider');
+  }
+  return context;
 };

@@ -10,14 +10,14 @@ urlpatterns = [
     # AUTHENTICATION & REGISTRATION
     # =============================================================================
     path("login/", views.MyTokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("register/", views.registerUser, name="register"),
-    path("activate/<str:uid>/<str:token>/", views.activateUser, name="activate"),
+    path("register/", views.register_user, name="register"),
+    path("activate/<str:uid>/<str:token>/", views.activate_user, name="activate"),
     
     # =============================================================================
     # PROFILE MANAGEMENT
     # =============================================================================
-    path("profile/", views.getUserProfile, name="users-profile"),
-    path("profile/update/", views.updateUserProfile, name="users-profile-update"),
+    path("profile/", views.get_user_profile, name="users-profile"),
+    path("profile/update/", views.update_user_profile, name="users-profile-update"),
     
     # =============================================================================
     # PASSWORD RESET
@@ -28,13 +28,13 @@ urlpatterns = [
     # =============================================================================
     # VENDOR OPERATIONS
     # =============================================================================
-    path("seller/orders/", views.getSellerOrders, name="seller-orders"),
+    path("seller/orders/", views.get_seller_orders, name="seller-orders"),
     
     # =============================================================================
     # ADMIN USER MANAGEMENT
     # =============================================================================
-    path("", views.getUsers, name="users"),
-    path("<int:pk>/", views.getUserById, name="user-detail"),
-    path("update/<int:pk>/", views.updateUser, name="user-update"),
-    path("delete/<int:pk>/", views.deleteUser, name="user-delete"),
+    path("", views.get_users, name="users"),
+    path("<int:pk>/", views.get_user_by_id, name="user-detail"),
+    path("update/<int:pk>/", views.update_user, name="user-update"),
+    path("delete/<int:pk>/", views.delete_user, name="user-delete"),
 ]

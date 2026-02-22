@@ -5,6 +5,7 @@ import { FaUser, FaShippingFast, FaBoxOpen, FaCheck, FaTimes, FaCalendarAlt, FaE
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import Meta from '../../components/tapheader/Meta';
 import { useSettings } from '../../context/SettingsContext';
+import toast from 'react-hot-toast';
 
 const OrderScreen = () => {
   const { id } = useParams();
@@ -47,11 +48,11 @@ const OrderScreen = () => {
     try {
       setPaymentLoading(true);
       await api.put(ENDPOINTS.PAY_ORDER(id), paymentResult);
-      alert(t('paymentSuccessful') || "Payment Successful! 🎉");
+      toast.success(t('paymentSuccessful') || "Payment Successful! 🎉");
       await fetchOrder(); 
     } catch (err) {
       console.error("Payment Error:", err);
-      alert(t('errorPayment') || "Error updating payment status");
+      toast.error(t('errorPayment') || "Error updating payment status");
     } finally {
         setPaymentLoading(false);
     }
@@ -61,26 +62,25 @@ const OrderScreen = () => {
     if (!window.confirm("Mark this order as delivered?")) return;
     try {
         await api.put(ENDPOINTS.DELIVER_ORDER(id), {});
-        alert(t('orderDelivered') || "Order Delivered! 🚚");
+        toast.success(t('orderDelivered') || "Order Delivered! 🚚");
         await fetchOrder();
     } catch (error) {
         console.error("Delivery Error:", error);
-        alert(error.response?.data?.detail || t('errorDelivery') || "Error updating delivery status");
+        toast.error(error.response?.data?.detail || t('errorDelivery') || "Error updating delivery status");
     }
   };
 
   const StatusBadge = ({ isSuccess, labelSuccess, labelFail, date, prefix }) => {
-      const isPaid = isSuccess; 
-      const bgClass = isPaid ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800' : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
+      const bgClass = isSuccess ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800' : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
       
       return (
         <div className={`p-4 rounded-2xl flex items-center gap-3 font-bold border transition-colors ${bgClass}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isPaid ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-100' : 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-100'}`}>
-                {isPaid ? <FaCheck size={14}/> : <FaTimes size={14}/>}
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isSuccess ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-100' : 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-100'}`}>
+                {isSuccess ? <FaCheck size={14}/> : <FaTimes size={14}/>}
             </div>
             <div className="flex flex-col">
-                <span className="text-sm uppercase tracking-wide">{isPaid ? labelSuccess : labelFail}</span>
-                {isPaid && date && <span className="text-xs opacity-80">{prefix} {date.substring(0, 10)}</span>}
+                <span className="text-sm uppercase tracking-wide">{isSuccess ? labelSuccess : labelFail}</span>
+                {isSuccess && date && <span className="text-xs opacity-80">{prefix} {date.substring(0, 10)}</span>}
             </div>
         </div>
       );
@@ -105,7 +105,7 @@ const OrderScreen = () => {
 
   return (
     <div className="min-h-screen pt-28 pb-10 px-4 md:px-6 bg-gray-50 dark:bg-gray-900 transition-colors duration-500 animate-fade-in">
-      <Meta title={`${t('order') || 'Order'} #${order._id || order.id}`} />
+      <Meta title={`${t('order') || 'Order'} #${order.id}`} />
       
       <div className="max-w-7xl mx-auto">
         
@@ -113,19 +113,19 @@ const OrderScreen = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 bg-white dark:bg-gray-800 p-6 rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-sm">
             <div>
                 <h1 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                    {t('order') || "ORDER"} <span className="text-primary">#{ (order._id || order.id).toString().substring(0, 8) }</span>
+                    {t('order') || "ORDER"} <span className="text-primary">#{ order.id.toString().substring(0, 8) }</span>
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 text-sm font-medium flex items-center gap-2 mt-1">
-                    <FaCalendarAlt /> {order.createdAt?.substring(0, 10)}
+                    <FaCalendarAlt /> {order.created_at?.substring(0, 10)}
                 </p>
             </div>
             
             <div className="flex gap-2">
-                 <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border ${order.isPaid ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800'}`}>
-                    {order.isPaid ? 'PAID' : 'NOT PAID'}
+                 <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border ${order.is_paid ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800'}`}>
+                    {order.is_paid ? 'PAID' : 'NOT PAID'}
                  </div>
-                 <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border ${order.isDelivered ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' : 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800'}`}>
-                    {order.isDelivered ? 'DELIVERED' : 'PENDING'}
+                 <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border ${order.is_delivered ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' : 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800'}`}>
+                    {order.is_delivered ? 'DELIVERED' : 'PENDING'}
                  </div>
             </div>
         </div>
@@ -143,22 +143,22 @@ const OrderScreen = () => {
                 </h2>
                 
                 <div className="space-y-4 text-gray-600 dark:text-gray-300 font-medium ml-2 mb-6">
-                    <p className="flex items-center gap-3"><FaUser className="text-gray-400"/> {order.user?.name}</p>
+                    <p className="flex items-center gap-3"><FaUser className="text-gray-400"/> {order.user?.name || order.user?.username}</p>
                     <p className="flex items-center gap-3"><FaEnvelope className="text-gray-400"/> <a href={`mailto:${order.user?.email}`} className="hover:text-primary underline transition">{order.user?.email}</a></p>
                     <div className="flex items-start gap-3">
                         <span className="mt-1"><FaShippingFast className="text-gray-400"/></span> 
                         <span>
-                            {order.shippingAddress?.address}, <br/>
-                            {order.shippingAddress?.city}, {order.shippingAddress?.country}
+                            {order.shipping_address?.address}, <br/>
+                            {order.shipping_address?.city}, {order.shipping_address?.country}
                         </span>
                     </div>
                 </div>
                 
                 <StatusBadge 
-                    isSuccess={order.isDelivered} 
+                    isSuccess={order.is_delivered} 
                     labelSuccess="Delivered" 
                     labelFail="Not Delivered Yet"
-                    date={order.deliveredAt}
+                    date={order.delivered_at}
                     prefix="On"
                 />
             </div>
@@ -170,14 +170,14 @@ const OrderScreen = () => {
                     {t('payment') || "PAYMENT"}
                 </h2>
                 <p className="text-gray-900 dark:text-white font-bold mb-6 ml-2 flex items-center gap-2">
-                    Method: <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-lg text-sm">{order.paymentMethod}</span>
+                    Method: <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-lg text-sm">{order.payment_method}</span>
                 </p>
                 
                 <StatusBadge 
-                    isSuccess={order.isPaid} 
+                    isSuccess={order.is_paid} 
                     labelSuccess="Paid" 
                     labelFail="Not Paid Yet"
-                    date={order.paidAt}
+                    date={order.paid_at}
                     prefix="On"
                 />
             </div>
@@ -189,7 +189,7 @@ const OrderScreen = () => {
                     {t('orderItems') || "ITEMS"}
                 </h2>
                 <div className="space-y-4">
-                    {order.orderItems?.map((item, index) => (
+                    {order.order_items?.map((item, index) => (
                         <div key={index} className="flex items-center gap-4 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-3xl border border-gray-100 dark:border-white/5 transition hover:bg-white dark:hover:bg-gray-700">
                             <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 flex-shrink-0">
                                 <img 
@@ -205,11 +205,11 @@ const OrderScreen = () => {
                                     {item.name}
                                 </Link>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mt-1">
-                                    {item.qty} x ${item.price}
+                                    {item.qty} x ${Number(item.price).toFixed(2)}
                                 </p>
                             </div>
                             <div className="text-right">
-                                <span className="text-gray-900 dark:text-white font-black text-lg block">${(item.qty * item.price).toFixed(2)}</span>
+                                <span className="text-gray-900 dark:text-white font-black text-lg block">${(item.qty * Number(item.price)).toFixed(2)}</span>
                             </div>
                         </div>
                     ))}
@@ -224,25 +224,34 @@ const OrderScreen = () => {
                     {t('orderSummary') || "Summary"}
                 </h3>
                 <div className="space-y-4 text-sm font-medium mb-8">
-                    <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>{t('items') || "Items"}</span><span className="text-gray-900 dark:text-white font-bold">${(order.totalPrice - order.taxPrice - order.shippingPrice).toFixed(2)}</span></div>
-                    <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>{t('shippingFee') || "Shipping"}</span><span className="text-gray-900 dark:text-white font-bold">${order.shippingPrice}</span></div>
-                    <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>{t('tax') || "Tax"}</span><span className="text-gray-900 dark:text-white font-bold">${order.taxPrice}</span></div>
+                    <div className="flex justify-between text-gray-500 dark:text-gray-400">
+                        <span>{t('items') || "Items"}</span>
+                        <span className="text-gray-900 dark:text-white font-bold">${(Number(order.total_price) - Number(order.tax_price) - Number(order.shipping_price)).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500 dark:text-gray-400">
+                        <span>{t('shippingFee') || "Shipping"}</span>
+                        <span className="text-gray-900 dark:text-white font-bold">${Number(order.shipping_price).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500 dark:text-gray-400">
+                        <span>{t('tax') || "Tax"}</span>
+                        <span className="text-gray-900 dark:text-white font-bold">${Number(order.tax_price).toFixed(2)}</span>
+                    </div>
                     
                     <div className="flex justify-between items-center pt-4 border-t border-dashed border-gray-300 dark:border-gray-600 mt-4">
                         <span className="text-gray-900 dark:text-white font-black text-lg">{t('total') || "TOTAL"}</span>
-                        <span className="text-primary font-black text-3xl">${order.totalPrice}</span>
+                        <span className="text-primary font-black text-3xl">${Number(order.total_price).toFixed(2)}</span>
                     </div>
                 </div>
                 
                 {/* PayPal Buttons */}
-                {!order.isPaid && !paymentLoading && (
+                {!order.is_paid && !paymentLoading && (
                     <div className="z-0 relative animate-fade-in-up">
                         <PayPalScriptProvider options={{ "client-id": "AUSM3-CzTVJEjqrXYXi9j3ct7D-kpJzzAU3q9qJ1AgpYBPyXs3uhV5ocIu_pIB-hciku3VGOE52ccmVD", currency: "USD" }}>
                             <PayPalButtons 
                                 style={{ layout: "vertical", shape: "rect", borderRadius: 12, height: 48 }}
                                 createOrder={(data, actions) => {
                                     return actions.order.create({ 
-                                        purchase_units: [{ amount: { value: order.totalPrice.toString() } }] 
+                                        purchase_units: [{ amount: { value: Number(order.total_price).toFixed(2).toString() } }] 
                                     });
                                 }}
                                 onApprove={(data, actions) => {
@@ -250,7 +259,7 @@ const OrderScreen = () => {
                                 }}
                                 onError={(err) => {
                                     console.error("PayPal Error:", err);
-                                    alert("Payment failed or cancelled.");
+                                    toast.error("Payment failed or cancelled.");
                                 }}
                             />
                         </PayPalScriptProvider>
@@ -266,7 +275,7 @@ const OrderScreen = () => {
                 )}
 
                 {/* Admin Delivery Button */}
-                {userInfo && userInfo.isAdmin && order.isPaid && !order.isDelivered && (
+                {userInfo && (userInfo.isAdmin || userInfo.is_admin) && order.is_paid && !order.is_delivered && (
                     <button 
                         onClick={deliverHandler}
                         className="w-full bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 hover:text-white dark:hover:bg-white dark:hover:text-dark text-white font-bold py-4 rounded-2xl transition shadow-lg mt-4 flex justify-center items-center gap-2 uppercase tracking-wide transform active:scale-95"
