@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     FaHeart, FaShoppingBag, FaSun, FaMoon, FaBars, FaTimes,
     FaArrowRight, FaUserCog, FaClipboardList, FaBox, FaUsers,
-    FaSignOutAlt, FaUser, FaGlobe, FaChevronDown, FaChartLine, FaStore, FaPlus
+    FaSignOutAlt, FaUser, FaGlobe, FaChevronDown, FaChartLine, FaStore, FaPlus,
+    FaReceipt
 } from 'react-icons/fa';
 import { useCart } from '../../context/CartContext';
 import SearchBox from '../searchbox/SearchBox';
@@ -140,6 +141,7 @@ const Navbar = () => {
                     </div>
 
                     <div className="hidden lg:flex items-center gap-6">
+
                         <div className="hidden lg:flex items-center bg-gray-100 dark:bg-white/5 rounded-full p-1 border border-gray-200 dark:border-white/5">
                             <button
                                 onClick={toggleLanguage}
@@ -208,6 +210,8 @@ const Navbar = () => {
                                             </div>
 
                                             <DropdownLink to="/profile" icon={<FaUser />} label={t('profile') || 'My Profile'} />
+                                            {/* ── MY ORDERS LINK (desktop dropdown) ── */}
+                                            <DropdownLink to="/myorders" icon={<FaReceipt />} label={t('myOrders') || 'My Orders'} />
 
                                             {isAdmin && (
                                                 <>
@@ -356,6 +360,13 @@ const Navbar = () => {
                                                 icon={<FaHeart />}
                                                 label={t('wishlist') || 'Wishlist'}
                                                 count={wishlistItems.length}
+                                                onClick={() => setMenuOpen(false)}
+                                            />
+                                            {/* ── MY ORDERS LINK (mobile sidebar) ── */}
+                                            <MobileLink
+                                                to="/myorders"
+                                                icon={<FaReceipt />}
+                                                label={t('myOrders') || 'My Orders'}
                                                 onClick={() => setMenuOpen(false)}
                                             />
                                         </>

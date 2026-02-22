@@ -24,6 +24,9 @@ const PlaceOrderScreen = React.lazy(() => import('./pages/shipping/PlaceOrderScr
 const PaymentScreen = React.lazy(() => import('./pages/shipping/PaymentScreen'));
 const OrderScreen = React.lazy(() => import('./pages/shipping/OrderScreen'));
 
+// My Orders Page (new)
+const MyOrdersScreen = React.lazy(() => import('./pages/profile/Myordersscreen'));
+
 // Auth Pages
 const LoginPage = React.lazy(() => import('./pages/login/LoginPage'));
 const RegisterPage = React.lazy(() => import('./pages/registerPage/RegisterPage'));
@@ -82,6 +85,9 @@ function App() {
             <Route path="/placeorder" element={<PlaceOrderScreen />} />
             <Route path="/payment" element={<PaymentScreen />} />
             <Route path="/order/:id" element={<OrderScreen />} />
+
+            {/* My Orders — customer purchases & seller store orders */}
+            <Route path="/myorders" element={<MyOrdersScreen />} />
 
             {/* Auth Routes */}
             <Route path="/login" element={<LoginPage />} />

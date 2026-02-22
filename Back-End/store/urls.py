@@ -58,6 +58,7 @@ urlpatterns = [
     # =============================================================================
     path("orders/add/", views.add_order_items, name="orders-add"),
     path("orders/myorders/", views.get_my_orders, name="myorders"),
+    path("orders/seller-orders/", views.get_seller_orders, name="seller_orders"),
     path("orders/export/csv/", views.export_orders_csv, name="export_orders_csv"),
 
     # Parameterized order paths

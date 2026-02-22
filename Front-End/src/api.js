@@ -39,7 +39,8 @@ export const ENDPOINTS = {
   REGISTER: "api/users/register/",
   USER_PROFILE: "api/users/profile/",
   PROFILE_UPDATE: "api/users/profile/update/",
-  SELLER_ORDERS: "api/users/seller/orders/",
+  // SELLER_ORDERS: "api/users/seller/orders/",
+  SELLER_ORDERS: "api/orders/seller-orders/",
 
   // Products
   PRODUCTS: "api/products/",

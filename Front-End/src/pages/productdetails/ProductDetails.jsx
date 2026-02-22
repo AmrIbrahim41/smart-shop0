@@ -571,8 +571,8 @@ const ProductDetails = () => {
                                     <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mb-6">
                                         <FaStar className="text-4xl text-gray-300 dark:text-gray-600" />
                                     </div>
-                                    <h4 className="text-2xl font-black text-gray-900 dark:text-white mb-3">لا توجد تقييمات بعد</h4>
-                                    <p className="text-gray-500 dark:text-gray-400 max-w-sm">كن أول من يشارك رأيه وتجربته حول هذا المنتج لمساعدة الآخرين!</p>
+                                    <h4 className="text-2xl font-black text-gray-900 dark:text-white mb-3">No reviews yet</h4>
+                                    <p className="text-gray-500 dark:text-gray-400 max-w-sm">Be the first to share your opinion and experience about this product to help others!</p>
                                 </div>
                             )}
                         </div>

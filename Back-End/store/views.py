@@ -1415,3 +1415,39 @@ def update_store_settings(request):
         serializer.errors,
     )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_seller_orders(request):
+    """
+    Get all orders that contain at least one product belonging to the current seller/vendor
+    """
+    user = request.user
+    
+    # نجلب الطلبات التي تحتوي على الأقل على منتج واحد يمتلكه هذا البائع
+    orders = Order.objects.filter(
+        items__product__user=user
+    ).select_related("user", "shipping_address").prefetch_related(
+        Prefetch("items", queryset=OrderItem.objects.select_related("product"))
+    ).distinct().order_by("-created_at")
+
+    # تقسيم الصفحات (Pagination)
+    page = request.query_params.get("page", 1)
+    paginator = Paginator(orders, 10)
+
+    try:
+        orders = paginator.page(page)
+    except (PageNotAnInteger, EmptyPage):
+        orders = paginator.page(1)
+
+    # تحويل البيانات باستخدام نفس الـ Serializer الأساسي
+    serializer = OrderSerializer(orders, many=True)
+    return Response(
+        {
+            "orders": serializer.data,
+            "page": int(page),
+            "pages": paginator.num_pages,
+            "total": paginator.count,
+        }
+    )

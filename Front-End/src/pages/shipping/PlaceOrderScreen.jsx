@@ -1,176 +1,217 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { 
-    FaMapMarkerAlt, FaCreditCard, FaBox, 
-    FaChevronRight, FaInfoCircle, FaShieldAlt 
-} from 'react-icons/fa';
-import { toast } from 'react-hot-toast';
-
-// استيراد الـ Contexts الجديدة
-import { useStoreSettings } from '../../context/Storesettingscontext';
-// افترضنا وجود CartContext لإدارة السلة
-// import { useCart } from '../../context/CartContext'; 
-
-import api from '../../api';
+import { useCart } from '../../context/CartContext';
+import { FaCheckCircle, FaMapMarkerAlt, FaCreditCard, FaBoxOpen, FaSpinner } from 'react-icons/fa';
+import api, { ENDPOINTS, getImageUrl } from '../../api'; // تمت إزالة cartinfo
 import Meta from '../../components/tapheader/Meta';
 import CheckoutSteps from '../../components/checkout/CheckoutSteps';
+import { useSettings } from '../../context/SettingsContext';
+// استدعاء إعدادات المتجر القادمة من الباك إند
+import { useStoreSettings } from '../../context/Storesettingscontext'; 
 
 const PlaceOrderScreen = () => {
     const navigate = useNavigate();
+    const { t } = useSettings();
+    const { cartItems, shippingAddress, paymentMethod, clearCart } = useCart();
     
-    // 1. جلب إعدادات الضرائب والشحن الديناميكية من السيرفر
-    const { taxRate, shippingCost, freeShippingThreshold, loading: settingsLoading } = useStoreSettings();
+    // جلب الإعدادات الحية (الضريبة والشحن) التي حددها الأدمن
+    const { taxRate, shippingCost, freeShippingThreshold } = useStoreSettings();
+    
+    const [success, setSuccess] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    // ملاحظة: هنا يجب جلب بيانات السلة والعنوان من الـ State الخاصة بك (Redux أو Context)
-    // كمثال، سنفترض وجود كائن cart يحتوي على البيانات
-    const cart = {
-        cartItems: [], // يتم جلبها من الـ store
-        shippingAddress: {}, 
-        paymentMethod: 'PayPal'
+    const getEffectivePrice = (item) => {
+        const price = Number(item.price);
+        const discount = Number(item.discount_price || item.discountPrice || 0);
+        
+        if (discount > 0 && discount < price) {
+            return discount;
+        }
+        return price;
     };
 
-    // 2. الحسابات المالية باستخدام القيم الديناميكية
-    const itemsPrice = useMemo(() => 
-        cart.cartItems.reduce((acc, item) => acc + item.price * item.qty, 0),
-    [cart.cartItems]);
+    // حساب الأسعار بناءً على قيم الباك إند
+    const { itemsPrice, shippingPrice, taxPrice, totalPrice } = useMemo(() => {
+        const items = cartItems.reduce((acc, item) => acc + getEffectivePrice(item) * item.qty, 0);
+        
+        // تطبيق الشحن المجاني إذا تخطى الحد المسموح، وإلا تطبيق سعر الشحن
+        const shipping = items >= freeShippingThreshold ? 0 : shippingCost;
+        // تطبيق نسبة الضريبة المحددة من الأدمن
+        const tax = Number((taxRate * items).toFixed(2)); 
+        const total = (items + shipping + tax).toFixed(2);
 
-    // تحديد الشحن (مجاني إذا تخطى الحد الأدنى المضبط في الباك اند)
-    const currentShipping = useMemo(() => 
-        itemsPrice > freeShippingThreshold ? 0 : shippingCost,
-    [itemsPrice, shippingCost, freeShippingThreshold]);
+        return {
+            itemsPrice: Number(items.toFixed(2)),
+            shippingPrice: shipping,
+            taxPrice: tax,
+            totalPrice: total
+        };
+    }, [cartItems, taxRate, shippingCost, freeShippingThreshold]);
 
-    const taxPrice = useMemo(() => 
-        Number((taxRate * itemsPrice).toFixed(2)),
-    [taxRate, itemsPrice]);
-
-    const totalPrice = useMemo(() => 
-        Number((itemsPrice + currentShipping + taxPrice).toFixed(2)),
-    [itemsPrice, currentShipping, taxPrice]);
+    useEffect(() => {
+        if (success) return;
+        if (!shippingAddress.address) {
+            navigate('/shipping');
+        } else if (!paymentMethod) {
+            navigate('/payment');
+        }
+    }, [shippingAddress, paymentMethod, navigate, success]); 
 
     const placeOrderHandler = async () => {
+        setLoading(true);
         try {
-            // استخدام snake_case في البيانات المرسلة للباك اند كما طلبنا من كلود
             const orderData = {
-                order_items: cart.cartItems,
-                shipping_address: cart.shippingAddress,
-                payment_method: cart.paymentMethod,
+                order_items: cartItems,
+                shipping_address: shippingAddress,
+                payment_method: paymentMethod,
                 items_price: itemsPrice,
-                shipping_price: currentShipping,
+                shipping_price: shippingPrice,
                 tax_price: taxPrice,
                 total_price: totalPrice,
             };
 
-            const { data } = await api.post('/api/orders/add/', orderData);
-            toast.success('Order placed successfully!');
-            navigate(`/order/${data.id}`);
-        } catch (err) {
-            toast.error(err.response?.data?.detail || 'Something went wrong');
+            const { data } = await api.post(ENDPOINTS.CREATE_ORDER, orderData);
+            setSuccess(true);
+            clearCart();
+            navigate(`/order/${data.id || data._id}`);
+
+        } catch (error) {
+            console.error("Place Order Error:", error);
+            alert(error.response?.data?.detail || t('errorPlacingOrder') || "Error placing order");
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pt-24 pb-12">
-            <Meta title="Place Order | Smart Shop" />
-            <div className="max-w-6xl mx-auto px-4">
+        <div className="min-h-screen pt-28 pb-10 px-4 md:px-6 bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
+            <Meta title={t('placeOrder') || "Place Order"} />
+
+            <div className="max-w-7xl mx-auto mb-10">
                 <CheckoutSteps step1 step2 step3 step4 />
+            </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
-                    {/* الجانب الأيسر: تفاصيل الطلب */}
-                    <div className="lg:col-span-2 space-y-6">
-                        
-                        {/* الشحن */}
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                            className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm"
-                        >
-                            <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-800 dark:text-white">
-                                <FaMapMarkerAlt className="text-indigo-600" /> Shipping Information
-                            </h2>
-                            <p className="text-slate-600 dark:text-slate-400 text-sm">
-                                <strong>Address: </strong>
-                                {cart.shippingAddress.address}, {cart.shippingAddress.city}, {cart.shippingAddress.postalCode}, {cart.shippingAddress.country}
-                            </p>
-                        </motion.div>
-
-                        {/* المنتجات */}
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                            className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm"
-                        >
-                            <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-800 dark:text-white">
-                                <FaBox className="text-indigo-600" /> Order Items
-                            </h2>
-                            {cart.cartItems.length === 0 ? (
-                                <p>Your cart is empty</p>
-                            ) : (
-                                <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {cart.cartItems.map((item, index) => (
-                                        <div key={index} className="py-4 flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
-                                                <Link to={`/product/${item.product}`} className="text-sm font-medium hover:text-indigo-600 dark:text-slate-200 transition-colors">
-                                                    {item.name}
-                                                </Link>
-                                            </div>
-                                            <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                                                {item.qty} x ${item.price} = ${(item.qty * item.price).toFixed(2)}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </motion.div>
+            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left Column: Details */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* Shipping Info */}
+                    <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-sm">
+                         <h2 className="text-xl font-black text-gray-900 dark:text-white mb-4 flex items-center gap-3 uppercase">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg">
+                                <FaMapMarkerAlt />
+                            </div>
+                            {t('shipping') || "SHIPPING"}
+                        </h2>
+                        <div className="pl-13 text-gray-600 dark:text-gray-400 font-medium ml-2">
+                            <p className="text-lg text-gray-900 dark:text-white font-bold mb-1">{shippingAddress.address}</p>
+                            <p>{shippingAddress.city}, {shippingAddress.postalCode}</p>
+                            <p>{shippingAddress.country}</p>
+                        </div>
                     </div>
 
-                    {/* الجانب الأيمن: ملخص السعر (Stripe-Style) */}
-                    <div className="lg:col-span-1">
-                        <motion.div 
-                            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-                            className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg sticky top-24"
+                     {/* Payment Info */}
+                     <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-sm">
+                        <h2 className="text-xl font-black text-gray-900 dark:text-white mb-4 flex items-center gap-3 uppercase">
+                            <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg">
+                                <FaCreditCard />
+                            </div>
+                            {t('paymentMethod') || "PAYMENT"}
+                        </h2>
+                        <p className="text-gray-900 dark:text-white font-bold text-lg ml-2">{paymentMethod}</p>
+                    </div>
+
+                    {/* Items List */}
+                    <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-sm hover:shadow-md transition-shadow">
+                        <h2 className="text-xl font-black text-gray-900 dark:text-white mb-6 flex items-center gap-3 uppercase">
+                            <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center text-lg">
+                                <FaBoxOpen />
+                            </div>
+                            {t('orderItems') || "ORDER ITEMS"}
+                        </h2>
+
+                        {cartItems.length === 0 ? (
+                            <div className="text-center p-4 text-gray-500">Your cart is empty</div>
+                        ) : (
+                            <div className="space-y-4">
+                                {cartItems.map((item, index) => {
+                                    const effectivePrice = getEffectivePrice(item);
+                                    
+                                    return (
+                                    <div key={index} className="flex items-center gap-4 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 transition hover:bg-white dark:hover:bg-gray-700">
+                                        <div className="w-16 h-16 bg-white dark:bg-gray-800 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border border-gray-200 dark:border-gray-600">
+                                            <img
+                                                src={getImageUrl(item.image)}
+                                                alt={item.name}
+                                                className="w-full h-full object-contain p-1"
+                                                loading="lazy"
+                                                onError={(e) => { e.target.src = '/images/placeholder.png'; }}
+                                            />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <Link to={`/product/${item.product}`} className="text-gray-900 dark:text-white font-bold hover:text-primary transition line-clamp-1 text-base">
+                                                {item.name}
+                                            </Link>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 font-bold mt-1">
+                                                Qty: {item.qty}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-gray-900 dark:text-white font-black text-lg">
+                                                ${(item.qty * effectivePrice).toFixed(2)}
+                                            </p>
+                                            <p className="text-xs text-gray-400">
+                                                ${effectivePrice} each
+                                                {effectivePrice < item.price && <span className="text-red-500 ml-1 line-through">${item.price}</span>}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )})}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Right Column: Order Summary */}
+                <div className="lg:col-span-1">
+                    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/20 dark:border-white/5 sticky top-24 shadow-2xl">
+                        <h2 className="text-xl font-black text-gray-900 dark:text-white mb-6 uppercase tracking-wider border-b border-gray-100 dark:border-white/10 pb-4">
+                            {t('orderSummary') || "Order Summary"}
+                        </h2>
+
+                        <div className="space-y-4 mb-8 text-sm font-medium">
+                            <div className="flex justify-between text-gray-500 dark:text-gray-400">
+                                <span>{t('items') || "Items"}</span>
+                                <span className="text-gray-900 dark:text-white font-bold">${itemsPrice.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-gray-500 dark:text-gray-400">
+                                <span>{t('shippingFee') || "Shipping"}</span>
+                                <span className="text-gray-900 dark:text-white font-bold">${shippingPrice.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-gray-500 dark:text-gray-400">
+                                <span>{t('tax') || "Tax"}</span>
+                                <span className="text-gray-900 dark:text-white font-bold">${taxPrice.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between items-center pt-4 border-t border-dashed border-gray-300 dark:border-gray-600 mt-4">
+                                <span className="text-gray-900 dark:text-white font-black text-lg">{t('total') || "Total"}</span>
+                                <span className="text-primary font-black text-3xl">${totalPrice}</span>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={placeOrderHandler}
+                            disabled={cartItems.length === 0 || loading}
+                            className="w-full bg-gradient-to-r from-primary to-orange-600 hover:shadow-lg hover:shadow-orange-500/30 text-white font-black py-4 rounded-2xl flex justify-center items-center gap-3 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed uppercase tracking-wide disabled:transform-none"
                         >
-                            <h2 className="text-xl font-bold mb-6 text-slate-800 dark:text-white">Order Summary</h2>
-                            
-                            <div className="space-y-4 text-sm text-slate-600 dark:text-slate-400">
-                                <div className="flex justify-between">
-                                    <span>Subtotal</span>
-                                    <span className="font-semibold text-slate-800 dark:text-slate-200">${itemsPrice.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="flex items-center gap-1">Shipping {currentShipping === 0 && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">FREE</span>}</span>
-                                    <span className="font-semibold text-slate-800 dark:text-slate-200">${currentShipping.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span>Tax ({(taxRate * 100).toFixed(1)}%)</span>
-                                    <span className="font-semibold text-slate-800 dark:text-slate-200">${taxPrice.toFixed(2)}</span>
-                                </div>
-                                <div className="border-t border-slate-100 dark:border-slate-800 pt-4 flex justify-between text-lg font-bold text-slate-900 dark:text-white">
-                                    <span>Total</span>
-                                    <span>${totalPrice.toFixed(2)}</span>
-                                </div>
-                            </div>
-
-                            <button
-                                type="button"
-                                disabled={cart.cartItems.length === 0 || settingsLoading}
-                                onClick={placeOrderHandler}
-                                className="w-full mt-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-md shadow-indigo-200 dark:shadow-none transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
-                            >
-                                {settingsLoading ? 'Calculating...' : 'Place Order'}
-                                <FaChevronRight className="text-xs group-hover:translate-x-1 transition-transform" />
-                            </button>
-
-                            <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl space-y-3">
-                                <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                                    <FaShieldAlt className="text-emerald-500" />
-                                    Secure SSL Encrypted Checkout
-                                </div>
-                                <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                                    <FaInfoCircle className="text-indigo-500" />
-                                    Review items and address before ordering.
-                                </div>
-                            </div>
-                        </motion.div>
+                            {loading ? (
+                                <>
+                                    <FaSpinner className="animate-spin" /> {t('processing') || "Processing..."}
+                                </>
+                            ) : (
+                                <>
+                                    {t('placeOrderBtn') || "CONFIRM ORDER"} <FaCheckCircle />
+                                </>
+                            )}
+                        </button>
                     </div>
                 </div>
             </div>
