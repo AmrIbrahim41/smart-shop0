@@ -49,12 +49,20 @@ const ProductListScreen = () => {
     const fetchProducts = useCallback(async () => {
         setLoading(true);
         try {
-            // تجهيز الرابط مع المتغيرات
-            let url = `/api/products/?page=${currentPage}`;
-            if (debouncedSearchTerm) url += `&keyword=${debouncedSearchTerm}`;
-            if (filterCategory !== 'all') url += `&category=${filterCategory}`;
-            if (filterStock !== 'all') url += `&stock_status=${filterStock}`;
+            // استخدام URLSearchParams لبناء الرابط بشكل آمن وتفادي أخطاء الـ URL encoding
+            const params = new URLSearchParams({ page: currentPage.toString() });
+            
+            if (debouncedSearchTerm) {
+                params.append('keyword', debouncedSearchTerm);
+            }
+            if (filterCategory && filterCategory !== 'all') {
+                params.append('category', filterCategory);
+            }
+            if (filterStock && filterStock !== 'all') {
+                params.append('stock_status', filterStock);
+            }
 
+            const url = `/api/products/?${params.toString()}`;
             const { data } = await api.get(url);
             
             if (Array.isArray(data)) {
@@ -202,9 +210,13 @@ const ProductListScreen = () => {
                                         className="w-full px-4 py-3.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-gray-900 dark:text-white font-medium cursor-pointer"
                                     >
                                         <option value="all">All Categories</option>
-                                        {categories.map((cat) => (
-                                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                        ))}
+                                        {categories.map((cat) => {
+                                            // ضمان استخدام الـ ID الصحيح وتجنب أي قيم فارغة
+                                            const catId = cat.id || cat._id;
+                                            return (
+                                                <option key={catId} value={catId}>{cat.name}</option>
+                                            );
+                                        })}
                                     </select>
                                 </div>
                                 <div>
@@ -386,7 +398,7 @@ const ProductListScreen = () => {
                             <p className="text-gray-500 dark:text-gray-400 mb-6">Are you sure you want to delete <span className="font-bold text-gray-900 dark:text-white">{productToDelete?.name}</span>? This action cannot be undone.</p>
                             <div className="flex justify-end gap-3">
                                 <button onClick={() => setShowDeleteModal(false)} className="px-5 py-2.5 rounded-xl font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Cancel</button>
-                                <button onClick={handleDeleteConfirm} className="px-5 py-2.5 rounded-xl font-bold bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-2">
+                                <button onClick={handleDeleteConfirm} className="px-5 py-2.5 rounded-xl font-bold bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-colors flex items-center gap-2">
                                     {deleting ? <FaSpinner className="animate-spin" /> : <><FaTrash /> Delete</>}
                                 </button>
                             </div>
