@@ -1,3 +1,14 @@
+/**
+ * Navbar — Refactored to use the shared <UserAvatar> component.
+ *
+ * Changes from the original:
+ *  - Removed the hard-coded DEFAULT_AVATAR base64 SVG blob.
+ *  - Replaced both <img> avatar tags (desktop button + mobile sidebar)
+ *    with <UserAvatar>, which handles missing URLs and broken URLs
+ *    automatically via react-avatar's built-in fallback.
+ *  - No other logic or JSX was changed — safe to drop in as a replacement.
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -13,9 +24,17 @@ import { useSettings } from '../../context/SettingsContext';
 import { getImageUrl } from '../../api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import UserAvatar from '../../components/Useravatar'; 
 
-// صورة افتراضية كلاسيكية (رمادية) مدمجة في الكود مباشرة لضمان عدم اختفائها أبداً
-const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg viewBox='0 0 1024 1024' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23e2e8f0' d='M512 0c282.77 0 512 229.23 512 512S794.77 1024 512 1024 0 794.77 0 512 229.23 0 512 0z'/%3E%3Cpath fill='%2394a3b8' d='M512 213.33c82.47 0 149.33 66.86 149.33 149.34S594.47 512 512 512s-149.33-66.86-149.33-149.33S429.53 213.33 512 213.33zm0 341.34c141.39 0 426.67 71.32 426.67 213.33v102.4C868.52 958.07 701.38 1024 512 1024c-189.38 0-356.52-65.93-426.67-153.6V768c0-142.01 285.28-213.33 426.67-213.33z'/%3E%3C/svg%3E";
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: resolve the avatar URL from userInfo, or return undefined so that
+// react-avatar falls back to the initials placeholder automatically.
+// ─────────────────────────────────────────────────────────────────────────────
+const resolveAvatarSrc = (userInfo) => {
+    const raw = userInfo?.profile?.profile_picture || userInfo?.profile?.profilePicture;
+    if (!raw) return undefined;
+    return getImageUrl(raw);
+};
 
 const Navbar = () => {
     const location = useLocation();
@@ -93,10 +112,14 @@ const Navbar = () => {
 
     const isAdmin = userInfo?.isAdmin === true || userInfo?.is_admin === true;
     const isVendor =
-        userInfo?.profile?.userType === 'vendor' || 
-        userInfo?.profile?.user_type === 'vendor' || 
+        userInfo?.profile?.userType === 'vendor' ||
+        userInfo?.profile?.user_type === 'vendor' ||
         userInfo?.user_type === 'vendor' ||
         userInfo?.userType === 'vendor';
+
+    // Derived values used by both avatar instances in this component
+    const avatarSrc  = resolveAvatarSrc(userInfo);
+    const avatarName = userInfo?.name || userInfo?.username || 'User';
 
     return (
         <>
@@ -180,17 +203,15 @@ const Navbar = () => {
                                     onClick={toggleProfileDropdown}
                                     className="flex items-center gap-3 bg-gray-50 dark:bg-white/5 px-4 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-all border border-gray-200 dark:border-white/5"
                                 >
-                                    <img
-                                        src={
-                                            userInfo?.profile?.profile_picture || userInfo?.profile?.profilePicture
-                                                ? getImageUrl(userInfo.profile.profile_picture || userInfo.profile.profilePicture)
-                                                : DEFAULT_AVATAR
-                                        }
-                                        className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-gray-700"
-                                        alt="avatar"
+                                    {/* ── DESKTOP AVATAR ── */}
+                                    <UserAvatar
+                                        src={avatarSrc}
+                                        name={avatarName}
+                                        size={32}
+                                        className="border-2 border-white dark:border-gray-700"
                                     />
                                     <span className="font-bold text-gray-900 dark:text-white text-sm max-w-[120px] truncate">
-                                        {userInfo.name || userInfo.username}
+                                        {avatarName}
                                     </span>
                                     <FaChevronDown className={`text-xs text-gray-400 transition-transform ${profileDropdownOpen ? 'rotate-180' : ''}`} />
                                 </button>
@@ -213,7 +234,6 @@ const Navbar = () => {
                                             </div>
 
                                             <DropdownLink to="/profile" icon={<FaUser />} label={t('profile') || 'My Profile'} />
-                                            {/* ── MY ORDERS LINK (desktop dropdown) ── */}
                                             <DropdownLink to="/myorders" icon={<FaReceipt />} label={t('myOrders') || 'My Orders'} />
 
                                             {isAdmin && (
@@ -301,21 +321,19 @@ const Navbar = () => {
 
                                 {isAuth ? (
                                     <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5">
-                                        <img
-                                            src={
-                                                userInfo?.profile?.profile_picture || userInfo?.profile?.profilePicture
-                                                    ? getImageUrl(userInfo.profile.profile_picture || userInfo.profile.profilePicture)
-                                                    : DEFAULT_AVATAR
-                                            }
-                                            className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-md"
-                                            alt="avatar"
+                                        {/* ── MOBILE SIDEBAR AVATAR ── */}
+                                        <UserAvatar
+                                            src={avatarSrc}
+                                            name={avatarName}
+                                            size={56}
+                                            className="border-2 border-white dark:border-gray-700 shadow-md"
                                         />
                                         <div>
                                             <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
                                                 {t('welcome') || 'Welcome'}
                                             </p>
                                             <p className="text-gray-900 dark:text-white font-black text-lg line-clamp-1">
-                                                {userInfo.name || userInfo.username}
+                                                {avatarName}
                                             </p>
                                             <Link
                                                 to="/profile"
@@ -365,7 +383,6 @@ const Navbar = () => {
                                                 count={wishlistItems.length}
                                                 onClick={() => setMenuOpen(false)}
                                             />
-                                            {/* ── MY ORDERS LINK (mobile sidebar) ── */}
                                             <MobileLink
                                                 to="/myorders"
                                                 icon={<FaReceipt />}

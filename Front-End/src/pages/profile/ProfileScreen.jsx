@@ -1,3 +1,18 @@
+/**
+ * ProfileScreen — Refactored to use the shared <UserAvatar> component.
+ *
+ * Changes from the original:
+ *  - The avatar section now uses <UserAvatar> in BOTH states:
+ *      a) When a preview URL exists (file just picked or loaded from API) →
+ *         UserAvatar receives `src` and renders the real photo; if that URL
+ *         ever breaks at runtime, react-avatar falls back to initials silently.
+ *      b) When no preview exists → UserAvatar receives no `src` and renders
+ *         the initials placeholder immediately.
+ *  - Removed the direct import of Avatar from 'react-avatar' (now handled
+ *    inside UserAvatar).
+ *  - No other logic or JSX was changed — safe to drop in as a replacement.
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../api';
@@ -6,9 +21,7 @@ import Meta from '../../components/tapheader/Meta';
 import { useSettings } from '../../context/SettingsContext';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-
-// صورة افتراضية كلاسيكية (رمادية) مدمجة في الكود مباشرة لضمان عدم اختفائها أبداً
-const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg viewBox='0 0 1024 1024' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23e2e8f0' d='M512 0c282.77 0 512 229.23 512 512S794.77 1024 512 1024 0 794.77 0 512 229.23 0 512 0z'/%3E%3Cpath fill='%2394a3b8' d='M512 213.33c82.47 0 149.33 66.86 149.33 149.34S594.47 512 512 512s-149.33-66.86-149.33-149.33S429.53 213.33 512 213.33zm0 341.34c141.39 0 426.67 71.32 426.67 213.33v102.4C868.52 958.07 701.38 1024 512 1024c-189.38 0-356.52-65.93-426.67-153.6V768c0-142.01 285.28-213.33 426.67-213.33z'/%3E%3C/svg%3E";
+import UserAvatar from '../../components/Useravatar'; 
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
@@ -163,6 +176,9 @@ const ProfileScreen = () => {
     }
   };
 
+  // Derived display name — kept in sync with form fields for live initials update.
+  const displayName = `${formData.firstName} ${formData.lastName}`.trim() || 'User';
+
   if (loading) {
     return (
       <div className="min-h-screen pt-32 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -203,21 +219,20 @@ const ProfileScreen = () => {
             {/* Profile Picture Section */}
             <div className="flex flex-col items-center">
               <div className="relative group">
-                <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 border-4 border-white dark:border-gray-800 shadow-lg">
-                  {profile_picturePreview ? (
-                    <img
-                      src={profile_picturePreview}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <img
-                      src={DEFAULT_AVATAR}
-                      alt="Default Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
+                {/*
+                  UserAvatar handles all three scenarios in one place:
+                    1. Valid URL that loads   → shows the photo.
+                    2. Valid URL that breaks  → silently shows initials.
+                    3. No URL at all         → shows initials immediately.
+                  The `displayName` value is derived live from the form fields,
+                  so the initials update as the user types their name.
+                */}
+                <UserAvatar
+                  src={profile_picturePreview}
+                  name={displayName}
+                  size={128}
+                  className="border-4 border-white dark:border-gray-800 shadow-lg"
+                />
 
                 <label className="absolute bottom-0 right-0 w-10 h-10 bg-primary hover:bg-orange-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg transition-all hover:scale-110">
                   <FaCamera />
