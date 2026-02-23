@@ -45,7 +45,6 @@ const ProfileScreen = () => {
           confirmPassword: ''
         });
 
-        // تم التعديل هنا: استخدام profile_picture بدلاً من profile_picture
         if (data.profile?.profile_picture) {
           setprofile_picturePreview(getImageUrl(data.profile.profile_picture));
         }
@@ -128,7 +127,6 @@ const ProfileScreen = () => {
         },
       });
 
-      // Update localStorage with new user info
       const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
       const updatedUserInfo = {
         ...userInfo,
@@ -138,7 +136,6 @@ const ProfileScreen = () => {
       };
       localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo));
 
-      // تحديث صورة العرض في حالة تم إرجاع رابط جديد من السيرفر
       if (data.profile?.profile_picture) {
         setprofile_picturePreview(getImageUrl(data.profile.profile_picture));
       }
@@ -148,7 +145,6 @@ const ProfileScreen = () => {
         duration: 3000,
       });
 
-      // Clear password fields
       setFormData(prev => ({
         ...prev,
         password: '',
@@ -213,7 +209,7 @@ const ProfileScreen = () => {
                     />
                   ) : (
                     <img
-                      src={`https://api.dicebear.com/9.x/micah/svg?seed=${formData.firstName || 'User'}&backgroundColor=f97316`}
+                      src="https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y"
                       alt="Default Profile"
                       className="w-full h-full object-cover"
                     />
