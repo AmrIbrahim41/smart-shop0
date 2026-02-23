@@ -27,21 +27,10 @@ api.interceptors.request.use(
 
 export const getImageUrl = (imgPath) => {
   if (!imgPath) return "/placeholder.jpg";
-  
-  // إذا كان الرابط كامل (زي صور البروفايل)، رجعه زي ما هو
   if (imgPath.startsWith("http")) return imgPath;
 
-  // تنظيف المسار من أي سلاش في البداية
-  let cleanPath = imgPath.startsWith("/") ? imgPath.slice(1) : imgPath;
-
-  // السر هنا: التأكد من وجود كلمة media في بداية المسار للمنتجات
-  if (!cleanPath.startsWith("media/")) {
-    cleanPath = `media/${cleanPath}`;
-  }
-
-  // دمج الرابط الأساسي مع مسار الصورة
-  const baseUrl = BASE_URL.endsWith("/") ? BASE_URL : `${BASE_URL}/`;
-  return `${baseUrl}${cleanPath}`;
+  const cleanPath = imgPath.startsWith("/") ? imgPath.slice(1) : imgPath;
+  return `${BASE_URL}${cleanPath}`;
 };
 
 export const ENDPOINTS = {
