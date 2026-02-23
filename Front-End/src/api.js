@@ -29,8 +29,14 @@ export const getImageUrl = (imgPath) => {
   if (!imgPath) return "/placeholder.jpg";
   if (imgPath.startsWith("http")) return imgPath;
 
-  const cleanPath = imgPath.startsWith("/") ? imgPath.slice(1) : imgPath;
-  return `${BASE_URL}${cleanPath}`;
+  let cleanPath = imgPath.startsWith("/") ? imgPath.slice(1) : imgPath;
+
+  if (!cleanPath.startsWith("media/")) {
+    cleanPath = `media/${cleanPath}`;
+  }
+
+  const baseUrl = BASE_URL.endsWith("/") ? BASE_URL : `${BASE_URL}/`;
+  return `${baseUrl}${cleanPath}`;
 };
 
 export const ENDPOINTS = {
