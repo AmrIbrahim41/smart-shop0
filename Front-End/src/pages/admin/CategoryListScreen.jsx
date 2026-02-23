@@ -74,7 +74,7 @@ const CategoryListScreen = () => {
                     duration: 2000,
                 });
             } else {
-                await api.put(`/api/categories/${currentCategory.id || currentCategory._id}/update/`, formData);
+                await api.put(`/api/categories/update/${currentCategory.id || currentCategory._id}/`, formData);
                 toast.success('Category updated successfully!', {
                     icon: '✅',
                     duration: 2000,
@@ -106,7 +106,7 @@ const CategoryListScreen = () => {
         setShowDeleteModal(false);
 
         try {
-            await api.delete(`/api/categories/${categoryToDelete.id || categoryToDelete._id}/delete/`);
+            await api.delete(`/api/categories/delete/${categoryToDelete.id || categoryToDelete._id}/`);
             
             toast.success('Category deleted successfully!', {
                 icon: '🗑️',
