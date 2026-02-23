@@ -21,6 +21,7 @@ const ProductListScreen = () => {
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [filterCategory, setFilterCategory] = useState('all');
     const [filterStock, setFilterStock] = useState('all');
+    const [filterStatus, setFilterStatus] = useState('all'); // الفلتر الجديد للحالة
     const [showFilters, setShowFilters] = useState(false);
     
     const [currentPage, setCurrentPage] = useState(1);
@@ -43,7 +44,7 @@ const ProductListScreen = () => {
     // 2. إعادة الصفحة للأولى عند تغيير أي فلتر لتجنب صفحات فارغة
     useEffect(() => {
         setCurrentPage(1);
-    }, [debouncedSearchTerm, filterCategory, filterStock]);
+    }, [debouncedSearchTerm, filterCategory, filterStock, filterStatus]);
 
     // 3. جلب المنتجات من السيرفر بناءً على الفلاتر
     const fetchProducts = useCallback(async () => {
@@ -60,6 +61,9 @@ const ProductListScreen = () => {
             }
             if (filterStock && filterStock !== 'all') {
                 params.append('stock_status', filterStock);
+            }
+            if (filterStatus && filterStatus !== 'all') { // إضافة حالة المنتج للرابط
+                params.append('approval_status', filterStatus);
             }
 
             const url = `/api/products/?${params.toString()}`;
@@ -82,7 +86,7 @@ const ProductListScreen = () => {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, debouncedSearchTerm, filterCategory, filterStock]);
+    }, [currentPage, debouncedSearchTerm, filterCategory, filterStock, filterStatus]);
 
     const fetchCategories = useCallback(async () => {
         try {
@@ -200,7 +204,7 @@ const ProductListScreen = () => {
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: 'auto', opacity: 1 }}
                                 exit={{ height: 0, opacity: 0 }}
-                                className="mt-4 pt-4 border-t border-gray-100 dark:border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-hidden"
+                                className="mt-4 pt-4 border-t border-gray-100 dark:border-white/10 grid grid-cols-1 md:grid-cols-3 gap-4 overflow-hidden"
                             >
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Category</label>
@@ -211,7 +215,6 @@ const ProductListScreen = () => {
                                     >
                                         <option value="all">All Categories</option>
                                         {categories.map((cat) => {
-                                            // ضمان استخدام الـ ID الصحيح وتجنب أي قيم فارغة
                                             const catId = cat.id || cat._id;
                                             return (
                                                 <option key={catId} value={catId}>{cat.name}</option>
@@ -230,6 +233,19 @@ const ProductListScreen = () => {
                                         <option value="in-stock">In Stock (&gt; 5)</option>
                                         <option value="low-stock">Low Stock (1 - 5)</option>
                                         <option value="out-of-stock">Out of Stock (0)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Product Status</label>
+                                    <select
+                                        value={filterStatus}
+                                        onChange={(e) => setFilterStatus(e.target.value)}
+                                        className="w-full px-4 py-3.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-gray-900 dark:text-white font-medium cursor-pointer"
+                                    >
+                                        <option value="all">All Status</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="rejected">Rejected</option>
                                     </select>
                                 </div>
                             </motion.div>

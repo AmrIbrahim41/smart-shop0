@@ -62,20 +62,25 @@ logger = logging.getLogger(__name__)
 def get_products(request):
     """
     Get all products with filtering, search, and pagination.
-    Query params: keyword, category, stock_status, page
+    Query params: keyword, category, stock_status, approval_status, page
     """
     query = request.query_params.get("keyword")
     category_id = request.query_params.get("category")
-    stock_status = request.query_params.get("stock_status") # استلام فلتر المخزون
+    stock_status = request.query_params.get("stock_status") 
+    approval_status = request.query_params.get("approval_status") # الفلتر الجديد
 
     # Optimize query with select_related and prefetch_related
     products = Product.objects.select_related("category", "user").prefetch_related(
         "tags"
     )
 
-    # Filter by approval status (non-admin users only see approved products)
+    # Filter by approval status
     if not request.user.is_staff:
+        # non-admin users only see approved products
         products = products.filter(approval_status="approved", is_active=True)
+    elif approval_status and approval_status != 'all':
+        # Admin filter by status
+        products = products.filter(approval_status=approval_status)
 
     # Search filter
     if query:
@@ -90,7 +95,7 @@ def get_products(request):
     if category_id and category_id != 'all':
         products = products.filter(category__id=category_id)
 
-    # Stock filter (فلتر المخزون الجديد)
+    # Stock filter 
     if stock_status and stock_status != 'all':
         if stock_status == 'in-stock':
             products = products.filter(count_in_stock__gt=5)
@@ -120,7 +125,6 @@ def get_products(request):
             "total": paginator.count,
         }
     )
-
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
