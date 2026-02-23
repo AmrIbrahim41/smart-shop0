@@ -212,9 +212,11 @@ const ProfileScreen = () => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-4xl">
-                      <FaUser />
-                    </div>
+                    <img
+                      src={`https://api.dicebear.com/9.x/micah/svg?seed=${formData.firstName || 'User'}&backgroundColor=f97316`}
+                      alt="Default Profile"
+                      className="w-full h-full object-cover"
+                    />
                   )}
                 </div>
 

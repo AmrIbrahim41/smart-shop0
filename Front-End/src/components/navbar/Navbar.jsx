@@ -181,7 +181,7 @@ const Navbar = () => {
                                         src={
                                             userInfo?.profile?.profile_picture || userInfo?.profile?.profilePicture
                                                 ? getImageUrl(userInfo.profile.profile_picture || userInfo.profile.profilePicture)
-                                                : "https://via.placeholder.com/150"
+                                                : `https://api.dicebear.com/9.x/micah/svg?seed=${userInfo?.name || userInfo?.username || 'User'}&backgroundColor=f97316`
                                         }
                                         className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-gray-700"
                                         alt="avatar"
@@ -302,7 +302,7 @@ const Navbar = () => {
                                             src={
                                                 userInfo?.profile?.profile_picture || userInfo?.profile?.profilePicture
                                                     ? getImageUrl(userInfo.profile.profile_picture || userInfo.profile.profilePicture)
-                                                    : "https://via.placeholder.com/150"
+                                                    : `https://api.dicebear.com/9.x/micah/svg?seed=${userInfo?.name || userInfo?.username || 'User'}&backgroundColor=f97316`
                                             }
                                             className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-md"
                                             alt="avatar"
