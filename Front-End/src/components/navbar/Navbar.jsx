@@ -14,6 +14,9 @@ import { getImageUrl } from '../../api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
+// صورة افتراضية كلاسيكية (رمادية) مدمجة في الكود مباشرة لضمان عدم اختفائها أبداً
+const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg viewBox='0 0 1024 1024' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23e2e8f0' d='M512 0c282.77 0 512 229.23 512 512S794.77 1024 512 1024 0 794.77 0 512 229.23 0 512 0z'/%3E%3Cpath fill='%2394a3b8' d='M512 213.33c82.47 0 149.33 66.86 149.33 149.34S594.47 512 512 512s-149.33-66.86-149.33-149.33S429.53 213.33 512 213.33zm0 341.34c141.39 0 426.67 71.32 426.67 213.33v102.4C868.52 958.07 701.38 1024 512 1024c-189.38 0-356.52-65.93-426.67-153.6V768c0-142.01 285.28-213.33 426.67-213.33z'/%3E%3C/svg%3E";
+
 const Navbar = () => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -181,7 +184,7 @@ const Navbar = () => {
                                         src={
                                             userInfo?.profile?.profile_picture || userInfo?.profile?.profilePicture
                                                 ? getImageUrl(userInfo.profile.profile_picture || userInfo.profile.profilePicture)
-                                                : "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y"
+                                                : DEFAULT_AVATAR
                                         }
                                         className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-gray-700"
                                         alt="avatar"
@@ -302,7 +305,7 @@ const Navbar = () => {
                                             src={
                                                 userInfo?.profile?.profile_picture || userInfo?.profile?.profilePicture
                                                     ? getImageUrl(userInfo.profile.profile_picture || userInfo.profile.profilePicture)
-                                                    : "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y"
+                                                    : DEFAULT_AVATAR
                                             }
                                             className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-md"
                                             alt="avatar"
