@@ -1,6 +1,7 @@
 import React, { Suspense, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { Analytics } from '@vercel/analytics/react';
 
 // Import the new Store Settings Context
 import { StoreSettingsProvider } from './context/Storesettingscontext';
@@ -117,6 +118,7 @@ function App() {
         </Suspense>
 
         <Footer />
+        <Analytics />
       </div>
     </StoreSettingsProvider>
   );
