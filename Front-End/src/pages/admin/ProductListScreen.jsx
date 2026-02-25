@@ -15,7 +15,7 @@ const ProductListScreen = () => {
     const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-    
+
     // حالات الفلتر
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -23,7 +23,7 @@ const ProductListScreen = () => {
     const [filterStock, setFilterStock] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all'); // الفلتر الجديد للحالة
     const [showFilters, setShowFilters] = useState(false);
-    
+
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [deleting, setDeleting] = useState(null);
@@ -52,7 +52,7 @@ const ProductListScreen = () => {
         try {
             // استخدام URLSearchParams لبناء الرابط بشكل آمن وتفادي أخطاء الـ URL encoding
             const params = new URLSearchParams({ page: currentPage.toString() });
-            
+
             if (debouncedSearchTerm) {
                 params.append('keyword', debouncedSearchTerm);
             }
@@ -68,7 +68,7 @@ const ProductListScreen = () => {
 
             const url = `/api/products/?${params.toString()}`;
             const { data } = await api.get(url);
-            
+
             if (Array.isArray(data)) {
                 setProducts(data);
                 setTotalPages(1);
@@ -137,10 +137,10 @@ const ProductListScreen = () => {
             formData.append('approval_status', newStatus);
 
             await api.put(`/api/products/update/${productId}/`, formData);
-            
+
             toast.success(`Status updated to ${newStatus}`);
-            setProducts(prevProducts => 
-                prevProducts.map(p => 
+            setProducts(prevProducts =>
+                prevProducts.map(p =>
                     (p._id || p.id) === productId ? { ...p, approval_status: newStatus } : p
                 )
             );
@@ -162,7 +162,7 @@ const ProductListScreen = () => {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-28 pb-12">
             <Meta title="Product Management - Admin" />
-            
+
             <div className="max-w-7xl mx-auto px-4 md:px-6">
                 {/* Header Section */}
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col lg:flex-row lg:items-end justify-between mb-8 gap-6">
@@ -184,12 +184,12 @@ const ProductListScreen = () => {
                     <div className="flex flex-col md:flex-row gap-4">
                         <div className="flex-1 relative group">
                             <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" />
-                            <input 
-                                type="text" 
-                                placeholder="Search products by name or brand..." 
-                                value={searchTerm} 
-                                onChange={(e) => setSearchTerm(e.target.value)} 
-                                className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-gray-900 dark:text-white font-medium" 
+                            <input
+                                type="text"
+                                placeholder="Search products by name or brand..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-gray-900 dark:text-white font-medium"
                             />
                         </div>
                         <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-all ${showFilters ? 'bg-primary text-white shadow-md' : 'bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
@@ -285,7 +285,7 @@ const ProductListScreen = () => {
                                                 </div>
 
                                                 <h3 className="font-bold text-gray-900 dark:text-white leading-tight line-clamp-2 mb-2" title={product.name}>{product.name}</h3>
-                                                
+
                                                 <div className="flex items-center justify-between mb-3">
                                                     <p className="text-xs text-gray-500 flex items-center gap-1.5 font-medium truncate max-w-[60%]"><FaTags className="text-gray-400 shrink-0" /> <span className="truncate">{product.category_name || 'Uncategorized'}</span></p>
                                                     <div className="flex items-center gap-1 text-yellow-400 text-sm shrink-0">
@@ -298,7 +298,7 @@ const ProductListScreen = () => {
                                                         <span className="font-black text-primary text-xl">${Number(product.final_price || product.price || 0).toFixed(2)}</span>
                                                     </div>
                                                     <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-700/50 px-2 py-1.5 rounded-lg border border-gray-200 dark:border-white/5 max-w-[120px]" title={product.user_name || 'Admin'}>
-                                                        <FaUserTie className="text-gray-400 shrink-0" /> 
+                                                        <FaUserTie className="text-gray-400 shrink-0" />
                                                         <span className="truncate">{product.user_name || 'Admin'}</span>
                                                     </div>
                                                 </div>
@@ -308,9 +308,9 @@ const ProductListScreen = () => {
                                                 </div>
 
                                                 <div className="grid grid-cols-2 gap-3">
-                                                    <Link to={`/admin/product/${productId}/edit`} className="py-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold hover:bg-blue-50 hover:text-blue-600 transition-colors flex justify-center items-center gap-2 border border-gray-200 dark:border-white/5"><FaEdit/> Edit</Link>
+                                                    <Link to={`/admin/product/${productId}/edit`} className="py-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold hover:bg-blue-50 hover:text-blue-600 transition-colors flex justify-center items-center gap-2 border border-gray-200 dark:border-white/5"><FaEdit /> Edit</Link>
                                                     <button onClick={() => handleDeleteClick(product)} disabled={isDeleting} className="py-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold hover:bg-red-50 hover:text-red-600 transition-colors flex justify-center items-center gap-2 border border-gray-200 dark:border-white/5 disabled:opacity-50">
-                                                        {isDeleting ? <FaSpinner className="animate-spin" /> : <><FaTrash/> Delete</>}
+                                                        {isDeleting ? <FaSpinner className="animate-spin" /> : <><FaTrash /> Delete</>}
                                                     </button>
                                                 </div>
                                             </div>
@@ -330,11 +330,11 @@ const ProductListScreen = () => {
                                     const isUpdating = updatingStatus === productId;
 
                                     return (
-                                        <motion.div 
-                                            initial={{ opacity: 0, x: -20 }} 
-                                            animate={{ opacity: 1, x: 0 }} 
+                                        <motion.div
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
                                             transition={{ delay: index * 0.05 }}
-                                            key={productId} 
+                                            key={productId}
                                             className={`bg-white dark:bg-gray-800 p-4 rounded-[1.5rem] border border-gray-100 dark:border-white/5 shadow-sm hover:shadow-md transition-all flex flex-col lg:flex-row items-start lg:items-center gap-6 ${isDeleting ? 'opacity-50' : ''}`}
                                         >
                                             <div className="w-full lg:w-32 h-32 rounded-xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center p-2 shrink-0 relative">
@@ -355,12 +355,12 @@ const ProductListScreen = () => {
                                                     )}
                                                 </div>
                                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate mb-2" title={product.name}>{product.name}</h3>
-                                                
+
                                                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                                                     <span className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded-md"><FaTags className="text-gray-400" /> {product.category_name || 'Uncategorized'}</span>
-                                                    <span className="flex items-center gap-1.5"><FaStar className="text-yellow-400"/> {Number(product.rating || 0).toFixed(1)} ({product.num_reviews})</span>
+                                                    <span className="flex items-center gap-1.5"><FaStar className="text-yellow-400" /> {Number(product.rating || 0).toFixed(1)} ({product.num_reviews})</span>
                                                     <span className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-md max-w-[150px]" title={product.user_name || 'Admin'}>
-                                                        <FaUserTie className="shrink-0"/> <span className="truncate">{product.user_name || 'Admin'}</span>
+                                                        <FaUserTie className="shrink-0" /> <span className="truncate">{product.user_name || 'Admin'}</span>
                                                     </span>
                                                 </div>
                                             </div>
@@ -388,10 +388,21 @@ const ProductListScreen = () => {
                             </div>
                         )}
 
-                        {/* Pagination */}
+                        {/* Pagination for Admin (State-based) */}
                         {totalPages > 1 && (
-                            <div className="flex justify-center mt-8">
-                                <Paginate page={currentPage} pages={totalPages} onPageChange={setCurrentPage} />
+                            <div className="flex justify-center mt-8 gap-2">
+                                {[...Array(totalPages).keys()].map((x) => (
+                                    <button
+                                        key={x + 1}
+                                        onClick={() => setCurrentPage(x + 1)}
+                                        className={`w-10 h-10 flex items-center justify-center rounded-xl font-bold transition-all ${x + 1 === currentPage
+                                                ? 'bg-primary text-white shadow-md'
+                                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-white/5'
+                                            }`}
+                                    >
+                                        {x + 1}
+                                    </button>
+                                ))}
                             </div>
                         )}
                     </>
@@ -429,7 +440,7 @@ const ProductListScreen = () => {
 // Status Select Component
 const StatusSelect = ({ status, onChange, disabled }) => {
     let styleClasses = '';
-    switch(status) {
+    switch (status) {
         case 'approved': styleClasses = 'bg-green-50/80 border-green-200 text-green-700 focus:ring-green-500/50 dark:bg-green-500/10 dark:border-green-500/20 dark:text-green-400'; break;
         case 'rejected': styleClasses = 'bg-red-50/80 border-red-200 text-red-700 focus:ring-red-500/50 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400'; break;
         default: styleClasses = 'bg-yellow-50/80 border-yellow-200 text-yellow-700 focus:ring-yellow-500/50 dark:bg-yellow-500/10 dark:border-yellow-500/20 dark:text-yellow-400';
@@ -451,9 +462,9 @@ const StatusSelect = ({ status, onChange, disabled }) => {
 
 // Stock Badge Component 
 const StockBadge = ({ stock }) => {
-    if (stock === 0) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-red-100/90 backdrop-blur-sm text-red-700 shadow-sm border border-red-200/50"><FaTimes className="text-[12px]"/> Out of Stock</span>;
-    if (stock <= 5) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-yellow-100/90 backdrop-blur-sm text-yellow-700 shadow-sm border border-yellow-200/50"><FaExclamationTriangle className="text-[12px]"/> {stock} Left</span>;
-    return <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-green-100/90 backdrop-blur-sm text-green-700 shadow-sm border border-green-200/50"><FaCheckCircle className="text-[12px]"/> In Stock</span>;
+    if (stock === 0) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-red-100/90 backdrop-blur-sm text-red-700 shadow-sm border border-red-200/50"><FaTimes className="text-[12px]" /> Out of Stock</span>;
+    if (stock <= 5) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-yellow-100/90 backdrop-blur-sm text-yellow-700 shadow-sm border border-yellow-200/50"><FaExclamationTriangle className="text-[12px]" /> {stock} Left</span>;
+    return <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-green-100/90 backdrop-blur-sm text-green-700 shadow-sm border border-green-200/50"><FaCheckCircle className="text-[12px]" /> In Stock</span>;
 };
 
 export default ProductListScreen;
