@@ -77,7 +77,7 @@ function App() {
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/shop" element={<ShopScreen />} />
-            <Route path="/product/:id" element={<ProductDetails />} />
+            <Route path="/product/:slug" element={<ProductDetails />} />
             <Route path="/wishlist" element={<WishlistScreen />} />
 
             {/* Cart & Checkout */}

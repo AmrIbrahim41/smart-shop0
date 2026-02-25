@@ -172,7 +172,7 @@ const StarSelector = ({ value, onChange }) => (
 // =============================================================================
 
 const ProductDetails = () => {
-    const { id } = useParams();
+    const { slug } = useParams();
     const navigate = useNavigate();
     const { addToCart, cartItems } = useCart();
     const { toggleWishlist, isInWishlist } = useWishlist();
@@ -220,7 +220,7 @@ const ProductDetails = () => {
             setLoading(true);
             setError(null);
 
-            const { data: currentProduct } = await apiService.getProductDetails(id);
+            const { data: currentProduct } = await apiService.getProductDetails(slug);
             setProduct(currentProduct);
             setGalleryIndex(0); // reset gallery on product change
 
@@ -353,7 +353,7 @@ const ProductDetails = () => {
     const addToCartHandler = useCallback(() => {
         if (!userInfo) {
             toast.error('Please sign in to add items to your cart', { icon: '🔒' });
-            navigate(`/login?redirect=product/${id}`);
+            navigate(`/login?redirect=product/${slug}`);
             return;
         }
         if (stockCount === 0) {
@@ -403,13 +403,13 @@ const ProductDetails = () => {
         setReviewLoading(true);
         try {
             if (isEditing) {
-                await api.put(`/api/products/${id}/reviews/update/`, {
+                await api.put(`/api/products/${product.id}/reviews/update/`, {
                     rating,
                     comment: comment.trim(),
                 });
                 toast.success('Your review has been updated!', { icon: '✨' });
             } else {
-                await api.post(`/api/products/${id}/reviews/create/`, {
+                await api.post(`/api/products/${product.id}/reviews/create/`, {
                     rating,
                     comment: comment.trim(),
                 });
@@ -429,7 +429,7 @@ const ProductDetails = () => {
     const deleteReviewHandler = async () => {
         if (!window.confirm('Delete your review? This cannot be undone.')) return;
         try {
-            await api.delete(`/api/products/${id}/reviews/delete/`);
+            await api.delete(`/api/products/${product.id}/reviews/delete/`);
             toast.success('Review removed', { icon: '🗑️' });
             setIsEditing(false);
             fetchProduct();
@@ -942,7 +942,7 @@ const ProductDetails = () => {
                                             Sign in to share your experience
                                         </p>
                                         <Link
-                                            to={`/login?redirect=product/${id}`}
+                                            to={`/login?redirect=product/${slug}`}
                                             className="inline-block w-full bg-amber-500 hover:bg-amber-600 text-white py-3.5 rounded-xl font-semibold transition-colors shadow-md shadow-amber-500/20 text-sm"
                                         >
                                             Login / Register
@@ -1115,7 +1115,7 @@ const ProductDetails = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.08 }}
                                     onClick={() =>
-                                        navigate(`/product/${item.id || item._id}`)
+                                        navigate(`/product/${item.slug || item.id || item._id}`)
                                     }
                                     className="group cursor-pointer bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-100 dark:border-neutral-800 hover:shadow-lg hover:shadow-primary/8 hover:border-primary/30 hover:-translate-y-1 transition-all duration-300"
                                 >

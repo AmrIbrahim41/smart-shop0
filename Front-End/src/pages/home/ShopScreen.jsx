@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import api from '../../api';
 import ProductCard from '../../components/productcard/ProductCard';
 import Meta from '../../components/tapheader/Meta';
@@ -7,7 +7,7 @@ import { FaStore, FaSync, FaExclamationTriangle, FaChevronLeft, FaChevronRight, 
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-const CategorySection = ({ category, index }) => {
+const CategorySection = ({ category, index, isSingleView }) => {
   const rowRef = useRef(null);
 
   // تحديث التمرير ليكون ديناميكي بناءً على عرض الشاشة الفعلي بدلاً من رقم ثابت
@@ -42,14 +42,16 @@ const CategorySection = ({ category, index }) => {
 
         <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
           {/* رابط "عرض الكل" كحل بديل للـ Pagination في العرض الأفقي */}
-          <Link 
-            to={`/?category=${category.id || category._id}`} // تأكد أن صفحة Home تستقبل هذا الباراميتر إذا أردت فلترة
-            className="flex items-center gap-2 text-sm font-bold text-primary hover:text-orange-600 transition group"
-          >
-            View All <FaArrowRight className="transform group-hover:translate-x-1 transition-transform" />
-          </Link>
+          {!isSingleView && (
+            <Link 
+              to={`/shop?category=${category.slug || category.id || category._id}`} 
+              className="flex items-center gap-2 text-sm font-bold text-primary hover:text-orange-600 transition group"
+            >
+              View All <FaArrowRight className="transform group-hover:translate-x-1 transition-transform" />
+            </Link>
+          )}
 
-          {category.products?.length > 4 && (
+          {!isSingleView && category.products?.length > 4 && (
             <div className="hidden md:flex gap-2">
               <button
                 onClick={() => scroll('left')}
@@ -73,8 +75,12 @@ const CategorySection = ({ category, index }) => {
       <div className="relative group px-4 md:px-0">
         <div
           ref={rowRef}
-          className="flex gap-6 overflow-x-auto pb-4 pt-2 scroll-smooth hide-scrollbar snap-x snap-mandatory focus:outline-none"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          className={
+            isSingleView 
+              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-4 pt-2"
+              : "flex gap-6 overflow-x-auto pb-4 pt-2 scroll-smooth hide-scrollbar snap-x snap-mandatory focus:outline-none"
+          }
+          style={!isSingleView ? { scrollbarWidth: 'none', msOverflowStyle: 'none' } : {}}
           tabIndex="0"
           role="region"
           aria-label={`${category.name} products`}
@@ -83,7 +89,11 @@ const CategorySection = ({ category, index }) => {
             category.products.map((product) => (
               <div
                 key={product.id || product._id}
-                className="w-[280px] md:w-[300px] flex-none snap-start transform transition duration-300 hover:scale-[1.02]"
+                className={
+                  isSingleView
+                    ? "w-full transform transition duration-300 hover:scale-[1.02]"
+                    : "w-[280px] md:w-[300px] flex-none snap-start transform transition duration-300 hover:scale-[1.02]"
+                }
               >
                 <ProductCard product={product} />
               </div>
@@ -100,6 +110,9 @@ const CategorySection = ({ category, index }) => {
 };
 
 const ShopScreen = () => {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const categoryParam = searchParams.get('category');
   const [shopData, setShopData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -168,6 +181,11 @@ const ShopScreen = () => {
             <p className="text-gray-500 dark:text-gray-400 font-medium text-lg">
               Browse products by category
             </p>
+            {categoryParam && (
+              <Link to="/shop" className="inline-flex items-center gap-2 mt-4 text-primary font-bold hover:underline">
+                <FaChevronLeft className="text-xs" /> Back to All Categories
+              </Link>
+            )}
           </div>
 
           {!loading && (
@@ -208,8 +226,15 @@ const ShopScreen = () => {
           <div aria-live="polite">
             <AnimatePresence>
               {shopData.length > 0 ? (
-                shopData.map((category, index) => (
-                  <CategorySection key={category.id || category._id} category={category} index={index} />
+                shopData
+                  .filter(category => !categoryParam || category.slug === categoryParam || String(category.id) === categoryParam || String(category._id) === categoryParam)
+                  .map((category, index) => (
+                    <CategorySection 
+                      key={category.id || category._id} 
+                      category={category} 
+                      index={index} 
+                      isSingleView={!!categoryParam}
+                    />
                 ))
               ) : (
                 <motion.div

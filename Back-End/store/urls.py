@@ -25,7 +25,7 @@ urlpatterns = [
     path("products/myproducts/", views.get_my_products, name="my-products"),
 
     # Parameterized paths come AFTER named paths
-    path("products/<int:pk>/", views.get_product, name="product-detail"),
+    path("products/<str:slug>/", views.get_product, name="product-detail"),
     path("products/update/<int:pk>/", views.update_product, name="product-update"),
     path("products/delete/<int:pk>/", views.delete_product, name="product-delete"),
     path("products/delete-image/<int:pk>/", views.delete_product_image, name="delete-product-image"),

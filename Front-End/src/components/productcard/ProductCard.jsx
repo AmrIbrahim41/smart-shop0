@@ -13,6 +13,7 @@ const ProductCard = memo(({ product }) => {
     // Extract product data with new backend field names
     const productData = useMemo(() => ({
         id: product.id,
+        slug: product.slug,
         name: product.name,
         image: product.image,
         price: Number(product.price) || 0,
@@ -51,7 +52,7 @@ const ProductCard = memo(({ product }) => {
                     color: '#fff',
                 },
             });
-            navigate('/login', { state: { from: `/product/${productData.id}` } });
+            navigate('/login', { state: { from: `/product/${productData.slug || productData.id}` } });
             return;
         }
 
@@ -119,7 +120,7 @@ const ProductCard = memo(({ product }) => {
             {/* Product Image */}
             <div className="relative w-full aspect-[3/4] rounded-t-[2rem] overflow-hidden bg-gray-100 dark:bg-gray-800">
                 <Link 
-                    to={`/product/${productData.id}`} 
+                    to={`/product/${productData.slug || productData.id}`} 
                     className="block w-full h-full"
                     aria-label={`View details for ${productData.name}`}
                 >
@@ -167,7 +168,7 @@ const ProductCard = memo(({ product }) => {
                     className="absolute inset-0 bg-black/20 backdrop-blur-[2px] hidden md:flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                 >
                     <Link
-                        to={`/product/${productData.id}`}
+                        to={`/product/${productData.slug || productData.id}`}
                         className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-primary hover:text-white transition-all shadow-xl transform hover:scale-105"
                     >
                         View Details
@@ -219,7 +220,7 @@ const ProductCard = memo(({ product }) => {
 
                 {/* Product Name */}
                 <Link
-                    to={`/product/${productData.id}`}
+                    to={`/product/${productData.slug || productData.id}`}
                     className="block group-hover:text-primary transition-colors duration-300 mb-3"
                 >
                     <h3 className="font-bold text-gray-900 dark:text-white text-lg leading-tight line-clamp-2 min-h-[3.5rem]">

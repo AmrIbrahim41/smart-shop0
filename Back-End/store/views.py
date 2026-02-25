@@ -71,61 +71,75 @@ logger = logging.getLogger(__name__)
 #   { "products|orders": [...], "page": N, "pages": N, "total": N }
 # =============================================================================
 
+
 class ProductPagination(PageNumberPagination):
     """12 products per page — used by the public product listing."""
+
     page_size = 12
 
     def get_paginated_response(self, data):
-        return Response({
-            "products": data,
-            "page": self.page.number,
-            "pages": self.page.paginator.num_pages,
-            "total": self.page.paginator.count,
-        })
+        return Response(
+            {
+                "products": data,
+                "page": self.page.number,
+                "pages": self.page.paginator.num_pages,
+                "total": self.page.paginator.count,
+            }
+        )
 
 
 class MyProductPagination(PageNumberPagination):
     """20 products per page — used by the seller's own product list."""
+
     page_size = 20
 
     def get_paginated_response(self, data):
-        return Response({
-            "products": data,
-            "page": self.page.number,
-            "pages": self.page.paginator.num_pages,
-            "total": self.page.paginator.count,
-        })
+        return Response(
+            {
+                "products": data,
+                "page": self.page.number,
+                "pages": self.page.paginator.num_pages,
+                "total": self.page.paginator.count,
+            }
+        )
 
 
 class OrderPagination(PageNumberPagination):
     """10 orders per page — used by customer (my orders) & seller order views."""
+
     page_size = 10
 
     def get_paginated_response(self, data):
-        return Response({
-            "orders": data,
-            "page": self.page.number,
-            "pages": self.page.paginator.num_pages,
-            "total": self.page.paginator.count,
-        })
+        return Response(
+            {
+                "orders": data,
+                "page": self.page.number,
+                "pages": self.page.paginator.num_pages,
+                "total": self.page.paginator.count,
+            }
+        )
 
 
 class AdminOrderPagination(PageNumberPagination):
     """20 orders per page — used by the admin all-orders view."""
+
     page_size = 20
 
     def get_paginated_response(self, data):
-        return Response({
-            "orders": data,
-            "page": self.page.number,
-            "pages": self.page.paginator.num_pages,
-            "total": self.page.paginator.count,
-        })
+        return Response(
+            {
+                "orders": data,
+                "page": self.page.number,
+                "pages": self.page.paginator.num_pages,
+                "total": self.page.paginator.count,
+            }
+        )
 
 
 # =============================================================================
 # PRODUCT VIEWS
 # =============================================================================
+
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -135,12 +149,14 @@ def get_products(request):
     Query params: keyword, category, stock_status, approval_status, page
     """
     query = request.query_params.get("keyword")
-    category_id = request.query_params.get("category")
+    category_slug = request.query_params.get("category")
     stock_status = request.query_params.get("stock_status")
     approval_status = request.query_params.get("approval_status")
 
     # Optimise query with select_related and prefetch_related
-    products = Product.objects.select_related("category", "user").prefetch_related("tags")
+    products = Product.objects.select_related("category", "user").prefetch_related(
+        "tags"
+    )
 
     # Filter by approval status
     if not request.user.is_staff:
@@ -158,8 +174,9 @@ def get_products(request):
         )
 
     # Category filter
-    if category_id and category_id != "all":
-        products = products.filter(category__id=category_id)
+    if category_slug and category_slug != "all":
+        # 2. الفلترة باستخدام slug الخاص بالقسم
+        products = products.filter(category__slug=category_slug)
 
     # Stock filter
     if stock_status and stock_status != "all":
@@ -181,17 +198,15 @@ def get_products(request):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
-def get_product(request, pk):
-    """Get single product by ID with all related data"""
-    queryset = (
-        Product.objects.select_related("category", "user")
-        .prefetch_related(
-            Prefetch("reviews", queryset=Review.objects.select_related("user")),
-            "images",
-            "tags",
-        )
+def get_product(request, slug):  # 1. تغيير pk إلى slug
+    """Get single product by slug with all related data"""
+    queryset = Product.objects.select_related("category", "user").prefetch_related(
+        Prefetch("reviews", queryset=Review.objects.select_related("user")),
+        "images",
+        "tags",
     )
-    product = get_object_or_404(queryset, pk=pk)
+    # 2. البحث باستخدام slug بدلاً من pk
+    product = get_object_or_404(queryset, slug=slug)
 
     # Only show non-approved products to admin or owner
     if product.approval_status != "approved" and not product.is_active:
@@ -503,6 +518,7 @@ def delete_product_image(request, pk):
 # VENDOR VIEWS
 # =============================================================================
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_my_products(request):
@@ -530,6 +546,7 @@ def get_my_products(request):
 # CATEGORY & TAG VIEWS
 # =============================================================================
 
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def get_categories(request):
@@ -549,6 +566,7 @@ def get_tags(request):
 
 
 # ADMIN CATEGORY & TAG MANAGEMENT
+
 
 @api_view(["POST"])
 @permission_classes([IsAdminUser])
@@ -573,7 +591,9 @@ def create_category(request):
             description=request.data.get("description", ""),
         )
         logger.info(f"Category created: {category.id}")
-        return Response(CategorySerializer(category).data, status=status.HTTP_201_CREATED)
+        return Response(
+            CategorySerializer(category).data, status=status.HTTP_201_CREATED
+        )
 
     except Exception as e:
         logger.error(f"Error creating category: {str(e)}")
@@ -686,6 +706,7 @@ def delete_tag(request, pk):
 # =============================================================================
 # ORDER VIEWS
 # =============================================================================
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -846,7 +867,9 @@ def get_order_by_id(request, pk):
             .get(id=pk)
         )
 
-        is_seller_item = OrderItem.objects.filter(order=order, product__user=user).exists()
+        is_seller_item = OrderItem.objects.filter(
+            order=order, product__user=user
+        ).exists()
 
         if user.is_staff or order.user == user or is_seller_item:
             serializer = OrderSerializer(order, many=False)
@@ -964,6 +987,7 @@ def delete_order(request, pk):
 # REVIEW VIEWS
 # =============================================================================
 
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_product_review(request, pk):
@@ -1005,7 +1029,9 @@ def create_product_review(request, pk):
     product.save()
 
     logger.info(f"Review created for product {product.id} by user {user.id}")
-    return Response({"detail": "Review added successfully."}, status=status.HTTP_201_CREATED)
+    return Response(
+        {"detail": "Review added successfully."}, status=status.HTTP_201_CREATED
+    )
 
 
 @api_view(["PUT"])
@@ -1057,6 +1083,7 @@ def update_product_review(request, pk):
 # =============================================================================
 # CART VIEWS
 # =============================================================================
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -1126,7 +1153,9 @@ def add_to_cart(request):
     cart_item.qty = new_qty
     cart_item.save()
 
-    logger.info(f"Product {product.id} added to cart for user {user.id}, qty: {new_qty}")
+    logger.info(
+        f"Product {product.id} added to cart for user {user.id}, qty: {new_qty}"
+    )
     return Response({"detail": "Item added to cart.", "qty": new_qty})
 
 
@@ -1202,6 +1231,7 @@ def clear_cart(request):
 # WISHLIST VIEWS
 # =============================================================================
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_wishlist(request):
@@ -1251,6 +1281,7 @@ def toggle_wishlist(request):
 # =============================================================================
 # ADDITIONAL PRODUCT VIEWS
 # =============================================================================
+
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -1310,6 +1341,7 @@ def get_products_by_category(request):
 # SELLER ORDERS — store app (migrated from users app)
 # =============================================================================
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_seller_orders(request):
@@ -1342,12 +1374,13 @@ def get_seller_orders(request):
 # ADMIN DASHBOARD & STATS
 # =============================================================================
 
+
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def get_dashboard_stats(request):
     """Get dashboard statistics for admin"""
-    total_sales = (
-        Order.objects.aggregate(sum=Sum("total_price"))["sum"] or Decimal("0.00")
+    total_sales = Order.objects.aggregate(sum=Sum("total_price"))["sum"] or Decimal(
+        "0.00"
     )
     total_orders = Order.objects.count()
     total_products = Product.objects.count()
@@ -1384,7 +1417,16 @@ def export_orders_csv(request):
 
     writer = csv.writer(response)
     writer.writerow(
-        ["Order ID", "Customer", "Email", "Date", "Total Price", "Paid", "Delivered", "Status"]
+        [
+            "Order ID",
+            "Customer",
+            "Email",
+            "Date",
+            "Total Price",
+            "Paid",
+            "Delivered",
+            "Status",
+        ]
     )
 
     orders = Order.objects.select_related("user").order_by("-created_at")
@@ -1393,9 +1435,11 @@ def export_orders_csv(request):
         writer.writerow(
             [
                 order.id,
-                f"{order.user.first_name} {order.user.last_name}".strip()
-                if order.user
-                else "Guest",
+                (
+                    f"{order.user.first_name} {order.user.last_name}".strip()
+                    if order.user
+                    else "Guest"
+                ),
                 order.user.email if order.user else "",
                 order.created_at.strftime("%Y-%m-%d %H:%M"),
                 str(order.total_price),
@@ -1412,6 +1456,7 @@ def export_orders_csv(request):
 # =============================================================================
 # STORE SETTINGS VIEWS
 # =============================================================================
+
 
 @api_view(["GET"])
 @permission_classes([AllowAny])

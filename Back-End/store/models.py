@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from decimal import Decimal
+from django.utils.text import slugify
 
 
 # =============================================================================
@@ -28,6 +29,11 @@ class Category(models.Model):
         indexes = [
             models.Index(fields=["name"]),
         ]
+        
+    def save(self, *args, **kwargs):
+        if not self.slug: # لو الـ slug فاضي
+            self.slug = slugify(self.name) # ولّده أوتوماتيك من الاسم
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
