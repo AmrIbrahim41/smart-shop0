@@ -198,15 +198,24 @@ def get_products(request):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
-def get_product(request, slug):  # 1. تغيير pk إلى slug
-    """Get single product by slug with all related data"""
-    queryset = Product.objects.select_related("category", "user").prefetch_related(
-        Prefetch("reviews", queryset=Review.objects.select_related("user")),
-        "images",
-        "tags",
+def get_product(request, slug): 
+    """Get single product by ID or Slug with all related data"""
+    queryset = (
+        Product.objects.select_related("category", "user")
+        .prefetch_related(
+            Prefetch("reviews", queryset=Review.objects.select_related("user")),
+            "images",
+            "tags",
+        )
     )
-    # 2. البحث باستخدام slug بدلاً من pk
-    product = get_object_or_404(queryset, slug=slug)
+    
+    # التعديل هنا: فحص هل المتغير رقم أم نص
+    if slug.isdigit():
+        # إذا كان رقماً، ابحث باستخدام الـ ID
+        product = get_object_or_404(queryset, pk=slug)
+    else:
+        # إذا كان نصاً، ابحث باستخدام الـ slug
+        product = get_object_or_404(queryset, slug=slug)
 
     # Only show non-approved products to admin or owner
     if product.approval_status != "approved" and not product.is_active:

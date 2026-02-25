@@ -6471,3 +6471,366 @@ INFO 2026-02-25 14:24:51,621 autoreload 29164 15012 Watching for file changes wi
 INFO 2026-02-25 14:24:55,357 autoreload 29164 15012 A:\smart-shop0\Back-End\store\views.py changed, reloading.
 INFO 2026-02-25 14:24:56,180 autoreload 32712 32104 Watching for file changes with StatReloader
 INFO 2026-02-25 14:26:24,597 autoreload 20416 18932 Watching for file changes with StatReloader
+INFO 2026-02-25 14:46:31,730 log 20416 6168 "OPTIONS /api/settings/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:46:31,730 log 20416 8580 "OPTIONS /api/settings/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:46:31,731 log 20416 23220 "OPTIONS /api/wishlist/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:46:31,731 log 20416 9932 "OPTIONS /api/cart/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:46:31,732 log 20416 29864 "OPTIONS /api/wishlist/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:46:31,734 log 20416 6168 "OPTIONS /api/cart/ HTTP/1.1" 200 0
+WARNING 2026-02-25 14:46:31,783 log 20416 31436 Not Found: /media/profiles/Gemini_Generated_Image_5x37oo5x37oo5x37.png
+WARNING 2026-02-25 14:46:31,788 log 20416 31436 "GET /media/profiles/Gemini_Generated_Image_5x37oo5x37oo5x37.png HTTP/1.1" 404 3063
+INFO 2026-02-25 14:46:31,792 basehttp 20416 31436 - Broken pipe from ('127.0.0.1', 54760)
+INFO 2026-02-25 14:46:31,793 log 20416 23220 "GET /api/wishlist/ HTTP/1.1" 200 31
+INFO 2026-02-25 14:46:31,804 log 20416 29864 "OPTIONS /api/products/?page=1 HTTP/1.1" 200 0
+INFO 2026-02-25 14:46:31,804 log 20416 8580 "OPTIONS /api/products/top/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:46:31,805 log 20416 6168 "OPTIONS /api/products/top/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:46:31,807 log 20416 9932 "GET /api/cart/ HTTP/1.1" 200 39
+INFO 2026-02-25 14:46:31,812 log 20416 8580 "OPTIONS /api/products/?page=1 HTTP/1.1" 200 0
+INFO 2026-02-25 14:46:31,818 log 20416 23220 "GET /api/wishlist/ HTTP/1.1" 200 31
+INFO 2026-02-25 14:46:31,834 log 20416 9932 "GET /api/cart/ HTTP/1.1" 200 39
+INFO 2026-02-25 14:46:31,866 log 20416 31660 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:46:31,877 log 20416 29864 "GET /api/products/top/ HTTP/1.1" 200 1366
+INFO 2026-02-25 14:46:31,882 log 20416 6168 "GET /api/products/?page=1 HTTP/1.1" 200 2334
+INFO 2026-02-25 14:46:31,895 log 20416 9932 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:46:31,903 log 20416 29864 "GET /api/products/top/ HTTP/1.1" 200 1366
+INFO 2026-02-25 14:46:31,917 log 20416 6168 "GET /api/products/?page=1 HTTP/1.1" 200 2334
+INFO 2026-02-25 14:46:31,918 log 20416 20440 "GET /media/products/Screenshot_2025-05-25_163612.png HTTP/1.1" 304 0
+INFO 2026-02-25 14:46:31,928 log 20416 20440 "GET /media/products/Screenshot_2025-06-08_133633.png HTTP/1.1" 304 0
+INFO 2026-02-25 14:47:27,036 log 20416 6168 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:47:27,036 log 20416 29864 "GET /api/wishlist/ HTTP/1.1" 200 31
+INFO 2026-02-25 14:47:27,056 log 20416 6168 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:47:27,057 log 20416 9932 "GET /api/wishlist/ HTTP/1.1" 200 31
+INFO 2026-02-25 14:47:27,058 log 20416 29864 "GET /api/cart/ HTTP/1.1" 200 39
+INFO 2026-02-25 14:47:27,066 log 20416 29864 "GET /api/cart/ HTTP/1.1" 200 39
+INFO 2026-02-25 14:47:45,762 log 20416 29864 "OPTIONS /api/products/1/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:47:45,767 log 20416 9932 "OPTIONS /api/products/1/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:47:45,777 log 20416 29864 "GET /api/settings/ HTTP/1.1" 200 126
+WARNING 2026-02-25 14:47:45,779 log 20416 23220 Not Found: /api/products/1/
+INFO 2026-02-25 14:47:45,780 log 20416 6168 "GET /api/wishlist/ HTTP/1.1" 200 31
+INFO 2026-02-25 14:47:45,780 log 20416 31660 "GET /api/cart/ HTTP/1.1" 200 39
+WARNING 2026-02-25 14:47:45,781 log 20416 23220 "GET /api/products/1/ HTTP/1.1" 404 48
+INFO 2026-02-25 14:47:45,788 log 20416 9932 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:47:45,789 log 20416 6168 "GET /api/wishlist/ HTTP/1.1" 200 31
+WARNING 2026-02-25 14:47:45,792 log 20416 23220 Not Found: /api/products/1/
+WARNING 2026-02-25 14:47:45,792 log 20416 23220 "GET /api/products/1/ HTTP/1.1" 404 48
+INFO 2026-02-25 14:47:45,807 log 20416 31660 "GET /api/cart/ HTTP/1.1" 200 39
+WARNING 2026-02-25 14:47:47,763 log 20416 20440 Not Found: /media/profiles/Gemini_Generated_Image_5x37oo5x37oo5x37.png
+WARNING 2026-02-25 14:47:47,764 log 20416 20440 "GET /media/profiles/Gemini_Generated_Image_5x37oo5x37oo5x37.png HTTP/1.1" 404 3063
+INFO 2026-02-25 14:48:16,877 log 20416 31660 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:48:16,883 log 20416 23220 "GET /api/cart/ HTTP/1.1" 200 39
+INFO 2026-02-25 14:48:16,890 log 20416 6168 "GET /api/wishlist/ HTTP/1.1" 200 31
+INFO 2026-02-25 14:48:16,898 log 20416 31660 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:48:16,899 log 20416 23220 "GET /api/cart/ HTTP/1.1" 200 39
+INFO 2026-02-25 14:48:16,920 log 20416 6168 "GET /api/wishlist/ HTTP/1.1" 200 31
+WARNING 2026-02-25 14:48:17,053 log 20416 11896 Not Found: /media/profiles/Gemini_Generated_Image_5x37oo5x37oo5x37.png
+WARNING 2026-02-25 14:48:17,057 log 20416 11896 "GET /media/profiles/Gemini_Generated_Image_5x37oo5x37oo5x37.png HTTP/1.1" 404 3063
+WARNING 2026-02-25 14:48:17,060 log 20416 6168 Not Found: /api/products/1/
+WARNING 2026-02-25 14:48:17,061 log 20416 6168 "GET /api/products/1/ HTTP/1.1" 404 48
+WARNING 2026-02-25 14:48:17,070 log 20416 6168 Not Found: /api/products/1/
+WARNING 2026-02-25 14:48:17,071 log 20416 6168 "GET /api/products/1/ HTTP/1.1" 404 48
+INFO 2026-02-25 14:49:15,695 log 20416 23220 "GET /api/products/?page=1 HTTP/1.1" 200 2334
+INFO 2026-02-25 14:49:15,697 log 20416 6168 "GET /api/products/top/ HTTP/1.1" 200 1366
+INFO 2026-02-25 14:49:15,731 log 20416 6168 "GET /api/products/top/ HTTP/1.1" 200 1366
+INFO 2026-02-25 14:49:15,732 log 20416 23220 "GET /api/products/?page=1 HTTP/1.1" 200 2334
+INFO 2026-02-25 14:49:19,292 log 20416 6168 "OPTIONS /api/cart/clear/ HTTP/1.1" 200 0
+WARNING 2026-02-25 14:49:19,294 log 20416 6168 Unauthorized: /api/cart/clear/
+WARNING 2026-02-25 14:49:19,295 log 20416 6168 "DELETE /api/cart/clear/ HTTP/1.1" 401 58
+INFO 2026-02-25 14:49:21,356 log 20416 6168 "OPTIONS /api/users/login/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:49:21,964 log 20416 6168 "POST /api/users/login/ HTTP/1.1" 200 1092
+INFO 2026-02-25 14:49:22,695 log 20416 23220 "GET /api/wishlist/ HTTP/1.1" 200 31
+INFO 2026-02-25 14:49:22,696 log 20416 31660 "GET /api/cart/ HTTP/1.1" 200 318
+INFO 2026-02-25 14:49:22,700 log 20416 6168 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:49:22,704 log 20416 9932 "GET /api/wishlist/ HTTP/1.1" 200 31
+INFO 2026-02-25 14:49:22,708 log 20416 23220 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:49:22,710 log 20416 31660 "GET /api/cart/ HTTP/1.1" 200 318
+INFO 2026-02-25 14:49:22,794 log 20416 23264 "GET /media/profiles/IMG20250518135028.jpg HTTP/1.1" 304 0
+INFO 2026-02-25 14:49:22,798 log 20416 23220 "GET /api/products/?page=1 HTTP/1.1" 200 2334
+INFO 2026-02-25 14:49:22,810 log 20416 31660 "GET /api/products/top/ HTTP/1.1" 200 1366
+INFO 2026-02-25 14:49:22,825 log 20416 23220 "GET /api/products/?page=1 HTTP/1.1" 200 2334
+INFO 2026-02-25 14:49:22,833 log 20416 31660 "GET /api/products/top/ HTTP/1.1" 200 1366
+INFO 2026-02-25 14:49:24,783 log 20416 31660 "OPTIONS /api/products/shop-view/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:49:24,783 log 20416 23220 "OPTIONS /api/products/shop-view/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:49:24,803 log 20416 23220 "GET /api/products/shop-view/ HTTP/1.1" 200 2342
+INFO 2026-02-25 14:49:24,818 log 20416 23220 "GET /api/products/shop-view/ HTTP/1.1" 200 2342
+INFO 2026-02-25 14:49:29,063 log 20416 31660 "OPTIONS /api/categories/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:49:29,064 log 20416 23220 "OPTIONS /api/categories/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:49:29,073 log 20416 23220 "GET /api/categories/ HTTP/1.1" 200 205
+INFO 2026-02-25 14:49:29,080 log 20416 23220 "GET /api/categories/ HTTP/1.1" 200 205
+INFO 2026-02-25 14:49:33,031 log 20416 23220 "OPTIONS /api/categories/update/1/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:49:33,042 views 20416 23220 Category updated: 1
+INFO 2026-02-25 14:49:33,044 log 20416 23220 "PUT /api/categories/update/1/ HTTP/1.1" 200 87
+INFO 2026-02-25 14:49:33,053 log 20416 23220 "GET /api/categories/ HTTP/1.1" 200 205
+INFO 2026-02-25 14:49:34,765 log 20416 23220 "GET /api/products/shop-view/ HTTP/1.1" 200 2338
+INFO 2026-02-25 14:49:34,786 log 20416 23220 "GET /api/products/shop-view/ HTTP/1.1" 200 2338
+INFO 2026-02-25 14:49:35,876 log 20416 23220 "OPTIONS /api/products/2/ HTTP/1.1" 200 0
+INFO 2026-02-25 14:49:35,877 log 20416 31660 "OPTIONS /api/products/2/ HTTP/1.1" 200 0
+WARNING 2026-02-25 14:49:35,882 log 20416 31660 Not Found: /api/products/2/
+WARNING 2026-02-25 14:49:35,882 log 20416 31660 "GET /api/products/2/ HTTP/1.1" 404 48
+WARNING 2026-02-25 14:49:35,887 log 20416 31660 Not Found: /api/products/2/
+WARNING 2026-02-25 14:49:35,888 log 20416 31660 "GET /api/products/2/ HTTP/1.1" 404 48
+INFO 2026-02-25 14:49:44,717 log 20416 31660 "GET /api/categories/ HTTP/1.1" 200 205
+INFO 2026-02-25 14:49:44,728 log 20416 31660 "GET /api/categories/ HTTP/1.1" 200 205
+INFO 2026-02-25 14:49:48,340 views 20416 31660 Category updated: 1
+INFO 2026-02-25 14:49:48,343 log 20416 31660 "PUT /api/categories/update/1/ HTTP/1.1" 200 89
+INFO 2026-02-25 14:49:48,352 log 20416 31660 "GET /api/categories/ HTTP/1.1" 200 207
+INFO 2026-02-25 14:49:52,754 log 20416 31660 "OPTIONS /api/categories/update/2/ HTTP/1.1" 200 0
+ERROR 2026-02-25 14:49:52,792 log 20416 31660 Internal Server Error: /api/categories/update/2/
+Traceback (most recent call last):
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\sqlite3\base.py", line 359, in execute
+    return super().execute(query, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+sqlite3.IntegrityError: UNIQUE constraint failed: store_category.slug
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\core\handlers\base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\views\generic\base.py", line 106, in view
+    return self.dispatch(request, *args, **kwargs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "A:\smart-shop0\.venv\Lib\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "A:\smart-shop0\.venv\Lib\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "A:\smart-shop0\.venv\Lib\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+  File "A:\smart-shop0\back-end\store\views.py", line 621, in update_category
+    category.save()
+    ~~~~~~~~~~~~~^^
+  File "A:\smart-shop0\back-end\store\models.py", line 36, in save
+    super().save(*args, **kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\base.py", line 874, in save
+    self.save_base(
+    ~~~~~~~~~~~~~~^
+        using=using,
+        ^^^^^^^^^^^^
+    ...<2 lines>...
+        update_fields=update_fields,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\base.py", line 966, in save_base
+    updated = self._save_table(
+        raw,
+    ...<4 lines>...
+        update_fields,
+    )
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\base.py", line 1110, in _save_table
+    results = self._do_update(
+        base_qs,
+    ...<5 lines>...
+        returning_fields,
+    )
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\base.py", line 1211, in _do_update
+    return filtered._update(values, returning_fields)
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\query.py", line 1327, in _update
+    return query.get_compiler(self.db).execute_returning_sql(returning_fields)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 2140, in execute_returning_sql
+    row_count = self.execute_sql(ROW_COUNT)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 2111, in execute_sql
+    row_count = super().execute_sql(result_type)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1624, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\utils.py", line 94, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\sqlite3\base.py", line 359, in execute
+    return super().execute(query, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: UNIQUE constraint failed: store_category.slug
+ERROR 2026-02-25 14:49:52,803 log 20416 31660 "PUT /api/categories/update/2/ HTTP/1.1" 500 28364
+ERROR 2026-02-25 14:49:55,305 log 20416 31660 Internal Server Error: /api/categories/update/2/
+Traceback (most recent call last):
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\sqlite3\base.py", line 359, in execute
+    return super().execute(query, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+sqlite3.IntegrityError: UNIQUE constraint failed: store_category.slug
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\core\handlers\base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\views\generic\base.py", line 106, in view
+    return self.dispatch(request, *args, **kwargs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "A:\smart-shop0\.venv\Lib\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "A:\smart-shop0\.venv\Lib\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "A:\smart-shop0\.venv\Lib\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+  File "A:\smart-shop0\back-end\store\views.py", line 621, in update_category
+    category.save()
+    ~~~~~~~~~~~~~^^
+  File "A:\smart-shop0\back-end\store\models.py", line 36, in save
+    super().save(*args, **kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\base.py", line 874, in save
+    self.save_base(
+    ~~~~~~~~~~~~~~^
+        using=using,
+        ^^^^^^^^^^^^
+    ...<2 lines>...
+        update_fields=update_fields,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\base.py", line 966, in save_base
+    updated = self._save_table(
+        raw,
+    ...<4 lines>...
+        update_fields,
+    )
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\base.py", line 1110, in _save_table
+    results = self._do_update(
+        base_qs,
+    ...<5 lines>...
+        returning_fields,
+    )
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\base.py", line 1211, in _do_update
+    return filtered._update(values, returning_fields)
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\query.py", line 1327, in _update
+    return query.get_compiler(self.db).execute_returning_sql(returning_fields)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 2140, in execute_returning_sql
+    row_count = self.execute_sql(ROW_COUNT)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 2111, in execute_sql
+    row_count = super().execute_sql(result_type)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1624, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\utils.py", line 94, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\db\backends\sqlite3\base.py", line 359, in execute
+    return super().execute(query, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: UNIQUE constraint failed: store_category.slug
+ERROR 2026-02-25 14:49:55,311 log 20416 31660 "PUT /api/categories/update/2/ HTTP/1.1" 500 28364
+INFO 2026-02-25 14:49:59,702 views 20416 31660 Category updated: 2
+INFO 2026-02-25 14:49:59,704 log 20416 31660 "PUT /api/categories/update/2/ HTTP/1.1" 200 115
+INFO 2026-02-25 14:49:59,714 log 20416 31660 "GET /api/categories/ HTTP/1.1" 200 207
+INFO 2026-02-25 14:50:08,173 views 20416 31660 Category updated: 2
+INFO 2026-02-25 14:50:08,176 log 20416 31660 "PUT /api/categories/update/2/ HTTP/1.1" 200 116
+INFO 2026-02-25 14:50:08,187 log 20416 31660 "GET /api/categories/ HTTP/1.1" 200 208
+INFO 2026-02-25 14:50:09,636 log 20416 31660 "GET /api/products/shop-view/ HTTP/1.1" 200 2344
+INFO 2026-02-25 14:50:09,652 log 20416 31660 "GET /api/products/shop-view/ HTTP/1.1" 200 2344
+WARNING 2026-02-25 14:50:10,718 log 20416 31660 Not Found: /api/products/2/
+WARNING 2026-02-25 14:50:10,719 log 20416 31660 "GET /api/products/2/ HTTP/1.1" 404 48
+WARNING 2026-02-25 14:50:10,726 log 20416 31660 Not Found: /api/products/2/
+WARNING 2026-02-25 14:50:10,727 log 20416 31660 "GET /api/products/2/ HTTP/1.1" 404 48
+INFO 2026-02-25 14:50:12,554 log 20416 31660 "GET /api/products/top/ HTTP/1.1" 200 1366
+INFO 2026-02-25 14:50:12,573 log 20416 31660 "GET /api/products/top/ HTTP/1.1" 200 1366
+INFO 2026-02-25 14:50:12,587 log 20416 23220 "GET /api/products/?page=1 HTTP/1.1" 200 2334
+INFO 2026-02-25 14:50:12,606 log 20416 23220 "GET /api/products/?page=1 HTTP/1.1" 200 2334
+WARNING 2026-02-25 14:50:13,945 log 20416 23220 Not Found: /api/products/2/
+WARNING 2026-02-25 14:50:13,946 log 20416 23220 "GET /api/products/2/ HTTP/1.1" 404 48
+WARNING 2026-02-25 14:50:13,951 log 20416 23220 Not Found: /api/products/2/
+WARNING 2026-02-25 14:50:13,952 log 20416 23220 "GET /api/products/2/ HTTP/1.1" 404 48
+INFO 2026-02-25 14:50:15,378 log 20416 23220 "GET /api/products/top/ HTTP/1.1" 200 1366
+INFO 2026-02-25 14:50:15,378 log 20416 31660 "GET /api/products/?page=1 HTTP/1.1" 200 2334
+INFO 2026-02-25 14:50:15,408 log 20416 23220 "GET /api/products/top/ HTTP/1.1" 200 1366
+INFO 2026-02-25 14:50:15,409 log 20416 31660 "GET /api/products/?page=1 HTTP/1.1" 200 2334
+WARNING 2026-02-25 14:51:17,495 log 20416 31660 Unauthorized: /api/cart/clear/
+WARNING 2026-02-25 14:51:17,496 log 20416 31660 "DELETE /api/cart/clear/ HTTP/1.1" 401 58
+INFO 2026-02-25 14:51:19,871 log 20416 31660 "POST /api/users/login/ HTTP/1.1" 200 1092
+INFO 2026-02-25 14:51:20,614 log 20416 31660 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:51:20,614 log 20416 23220 "GET /api/wishlist/ HTTP/1.1" 200 31
+INFO 2026-02-25 14:51:20,614 log 20416 9932 "GET /api/cart/ HTTP/1.1" 200 318
+INFO 2026-02-25 14:51:20,626 log 20416 31660 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:51:20,627 log 20416 23220 "GET /api/cart/ HTTP/1.1" 200 318
+INFO 2026-02-25 14:51:20,627 log 20416 9932 "GET /api/wishlist/ HTTP/1.1" 200 31
+INFO 2026-02-25 14:51:20,673 log 20416 9932 "GET /api/products/top/ HTTP/1.1" 200 1366
+INFO 2026-02-25 14:51:20,687 log 20416 23220 "GET /api/products/?page=1 HTTP/1.1" 200 2334
+INFO 2026-02-25 14:51:20,702 log 20416 9932 "GET /api/products/top/ HTTP/1.1" 200 1366
+INFO 2026-02-25 14:51:20,717 log 20416 23220 "GET /api/products/?page=1 HTTP/1.1" 200 2334
+WARNING 2026-02-25 14:51:23,005 log 20416 23220 Not Found: /api/products/1/
+WARNING 2026-02-25 14:51:23,007 log 20416 23220 "GET /api/products/1/ HTTP/1.1" 404 48
+WARNING 2026-02-25 14:51:23,013 log 20416 23220 Not Found: /api/products/1/
+WARNING 2026-02-25 14:51:23,013 log 20416 23220 "GET /api/products/1/ HTTP/1.1" 404 48
+INFO 2026-02-25 14:51:26,237 log 20416 23220 "GET /api/categories/ HTTP/1.1" 200 205
+INFO 2026-02-25 14:51:26,245 log 20416 23220 "GET /api/categories/ HTTP/1.1" 200 205
+INFO 2026-02-25 14:51:30,601 views 20416 23220 Category updated: 1
+INFO 2026-02-25 14:51:30,604 log 20416 23220 "PUT /api/categories/update/1/ HTTP/1.1" 200 87
+INFO 2026-02-25 14:51:30,616 log 20416 23220 "GET /api/categories/ HTTP/1.1" 200 205
+INFO 2026-02-25 14:51:31,987 log 20416 23220 "GET /api/products/shop-view/ HTTP/1.1" 200 2338
+INFO 2026-02-25 14:51:32,004 log 20416 23220 "GET /api/products/shop-view/ HTTP/1.1" 200 2338
+INFO 2026-02-25 14:51:33,864 log 20416 9932 "GET /api/wishlist/ HTTP/1.1" 200 31
+INFO 2026-02-25 14:51:33,864 log 20416 31660 "GET /api/cart/ HTTP/1.1" 200 318
+INFO 2026-02-25 14:51:33,873 log 20416 23220 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:51:33,876 log 20416 9932 "GET /api/wishlist/ HTTP/1.1" 200 31
+INFO 2026-02-25 14:51:33,880 log 20416 31660 "GET /api/cart/ HTTP/1.1" 200 318
+INFO 2026-02-25 14:51:33,883 log 20416 23220 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 14:51:33,923 log 20416 23220 "GET /api/products/shop-view/ HTTP/1.1" 200 2338
+INFO 2026-02-25 14:51:33,938 log 20416 23220 "GET /api/products/shop-view/ HTTP/1.1" 200 2338
+WARNING 2026-02-25 14:51:34,692 log 20416 23220 Not Found: /api/products/2/
+WARNING 2026-02-25 14:51:34,692 log 20416 23220 "GET /api/products/2/ HTTP/1.1" 404 48
+WARNING 2026-02-25 14:51:34,697 log 20416 23220 Not Found: /api/products/2/
+WARNING 2026-02-25 14:51:34,698 log 20416 23220 "GET /api/products/2/ HTTP/1.1" 404 48
+INFO 2026-02-25 14:52:46,597 autoreload 20416 18932 A:\smart-shop0\Back-End\store\views.py changed, reloading.
+INFO 2026-02-25 14:52:47,613 autoreload 24432 28448 Watching for file changes with StatReloader
