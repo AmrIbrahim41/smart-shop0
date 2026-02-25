@@ -249,7 +249,7 @@ const ProductDetails = () => {
         } finally {
             setLoading(false);
         }
-    }, [id]);
+    }, [slug]);
 
     useEffect(() => {
         fetchProduct();
@@ -369,7 +369,7 @@ const ProductDetails = () => {
         }
         addToCart(product, qty);
         toast.success('Added to your cart!', { icon: '🛒' });
-    }, [userInfo, stockCount, cartItems, product, qty, addToCart, navigate, id, t]);
+    }, [userInfo, stockCount, cartItems, product, qty, addToCart, navigate, slug, t]);
 
     // -------------------------------------------------------------------------
     // REVIEW HANDLERS
