@@ -1,18 +1,3 @@
-/**
- * ProfileScreen — Refactored to use the shared <UserAvatar> component.
- *
- * Changes from the original:
- *  - The avatar section now uses <UserAvatar> in BOTH states:
- *      a) When a preview URL exists (file just picked or loaded from API) →
- *         UserAvatar receives `src` and renders the real photo; if that URL
- *         ever breaks at runtime, react-avatar falls back to initials silently.
- *      b) When no preview exists → UserAvatar receives no `src` and renders
- *         the initials placeholder immediately.
- *  - Removed the direct import of Avatar from 'react-avatar' (now handled
- *    inside UserAvatar).
- *  - No other logic or JSX was changed — safe to drop in as a replacement.
- */
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../api';
@@ -50,7 +35,8 @@ const ProfileScreen = () => {
       try {
         const { data } = await api.get('/api/users/profile/');
 
-        setFormData({
+        setFormData(prev => ({
+          ...prev,
           firstName: data.name?.split(' ')[0] || '',
           lastName: data.name?.split(' ').slice(1).join(' ') || '',
           email: data.email || '',
@@ -58,9 +44,7 @@ const ProfileScreen = () => {
           city: data.profile?.city || '',
           country: data.profile?.country || '',
           birthdate: data.profile?.birthdate || '',
-          password: '',
-          confirmPassword: ''
-        });
+        }));
 
         if (data.profile?.profile_picture) {
           setprofile_picturePreview(getImageUrl(data.profile.profile_picture));
@@ -106,32 +90,45 @@ const ProfileScreen = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (formData.password && formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-
-    if (formData.password && formData.password.length < 8) {
-      toast.error('Password must be at least 8 characters');
-      return;
-    }
-
     setUpdating(true);
 
     try {
+      // 1. معالجة طلب تغيير كلمة المرور (إذا أدخل المستخدم بيانات فيها)
+      if (formData.oldPassword || formData.password || formData.confirmPassword) {
+        if (!formData.oldPassword) {
+          toast.error('Please enter your old password.');
+          setUpdating(false);
+          return;
+        }
+        if (formData.password !== formData.confirmPassword) {
+          toast.error('Passwords do not match');
+          setUpdating(false);
+          return;
+        }
+        if (formData.password.length < 8) {
+          toast.error('Password must be at least 8 characters');
+          setUpdating(false);
+          return;
+        }
+
+        // إرسال طلب تغيير كلمة المرور للمسار المخصص
+        await api.put('/api/users/profile/change-password/', {
+          old_password: formData.oldPassword,
+          new_password: formData.password,
+          confirm_password: formData.confirmPassword
+        });
+      }
+
+      // 2. معالجة طلب تحديث بيانات الملف الشخصي الأساسية والصورة
       const submitData = new FormData();
       submitData.append('first_name', formData.firstName);
       submitData.append('last_name', formData.lastName);
       submitData.append('phone', formData.phone || '');
       submitData.append('city', formData.city || '');
       submitData.append('country', formData.country || '');
+      
       if (formData.birthdate) {
         submitData.append('birthdate', formData.birthdate);
-      }
-
-      if (formData.password) {
-        submitData.append('password', formData.password);
       }
 
       if (profile_picture) {
@@ -144,6 +141,7 @@ const ProfileScreen = () => {
         },
       });
 
+      // تحديث البيانات في الـ LocalStorage
       const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
       const updatedUserInfo = {
         ...userInfo,
@@ -162,22 +160,32 @@ const ProfileScreen = () => {
         duration: 3000,
       });
 
+      // تفريغ حقول كلمة المرور بعد النجاح
       setFormData(prev => ({
         ...prev,
+        oldPassword: '',
         password: '',
         confirmPassword: ''
       }));
 
     } catch (error) {
       console.error("Update error:", error);
-      const errorMsg = error.response?.data?.detail || "Failed to update profile";
+      
+      // استخراج رسالة الخطأ بشكل أدق (خاصة أخطاء كلمة المرور القديمة)
+      let errorMsg = "Failed to update profile";
+      if (error.response?.data) {
+        const responseData = error.response.data;
+        if (responseData.old_password) errorMsg = responseData.old_password[0];
+        else if (responseData.new_password) errorMsg = responseData.new_password[0];
+        else if (responseData.detail) errorMsg = responseData.detail;
+      }
+      
       toast.error(errorMsg);
     } finally {
       setUpdating(false);
     }
   };
 
-  // Derived display name — kept in sync with form fields for live initials update.
   const displayName = `${formData.firstName} ${formData.lastName}`.trim() || 'User';
 
   if (loading) {
@@ -194,7 +202,6 @@ const ProfileScreen = () => {
 
       <div className="max-w-4xl mx-auto">
 
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -220,14 +227,6 @@ const ProfileScreen = () => {
             {/* Profile Picture Section */}
             <div className="flex flex-col items-center">
               <div className="relative group">
-                {/*
-                  UserAvatar handles all three scenarios in one place:
-                    1. Valid URL that loads   → shows the photo.
-                    2. Valid URL that breaks  → silently shows initials.
-                    3. No URL at all         → shows initials immediately.
-                  The `displayName` value is derived live from the form fields,
-                  so the initials update as the user types their name.
-                */}
                 <UserAvatar
                   src={profile_picturePreview}
                   name={displayName}
@@ -374,6 +373,25 @@ const ProfileScreen = () => {
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Old Password (أخذ عرض كامل لتنسيق أفضل) */}
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
+                    Old Password
+                  </label>
+                  <div className="relative">
+                    <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="password"
+                      name="oldPassword"
+                      value={formData.oldPassword}
+                      onChange={handleChange}
+                      className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-gray-900 dark:text-white"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+
                 {/* New Password */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
