@@ -1,6 +1,19 @@
 """
 Store Views for Smart Shop E-commerce Platform
 Complete refactored version with security, performance, and best practices
+
+PAGINATION UPGRADE (v2):
+- Replaced Django's manual Paginator/try-except blocks with proper DRF
+  PageNumberPagination subclasses throughout.
+- Four pagination classes cover every paginated endpoint:
+    ProductPagination      (12/page) → get_products
+    MyProductPagination    (20/page) → get_my_products
+    OrderPagination        (10/page) → get_my_orders, get_seller_orders
+    AdminOrderPagination   (20/page) → get_orders
+- Each class overrides get_paginated_response() to return the exact JSON
+  shape the frontend already expects:
+    { "products|orders": [...], "page": N, "pages": N, "total": N }
+- Removed: `from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger`
 """
 
 import csv
@@ -13,16 +26,15 @@ from django.db import transaction
 from django.db.models import Q, Sum, F, Avg, Count, Prefetch
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.utils import timezone
 from django.contrib.auth.models import User
 
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-# تم إضافة JSONParser هنا
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser 
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 
 from .models import (
     Category,
@@ -54,6 +66,64 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# DRF PAGINATION CLASSES
+# All classes emit the same JSON envelope the frontend already consumes:
+#   { "products|orders": [...], "page": N, "pages": N, "total": N }
+# =============================================================================
+
+class ProductPagination(PageNumberPagination):
+    """12 products per page — used by the public product listing."""
+    page_size = 12
+
+    def get_paginated_response(self, data):
+        return Response({
+            "products": data,
+            "page": self.page.number,
+            "pages": self.page.paginator.num_pages,
+            "total": self.page.paginator.count,
+        })
+
+
+class MyProductPagination(PageNumberPagination):
+    """20 products per page — used by the seller's own product list."""
+    page_size = 20
+
+    def get_paginated_response(self, data):
+        return Response({
+            "products": data,
+            "page": self.page.number,
+            "pages": self.page.paginator.num_pages,
+            "total": self.page.paginator.count,
+        })
+
+
+class OrderPagination(PageNumberPagination):
+    """10 orders per page — used by customer (my orders) & seller order views."""
+    page_size = 10
+
+    def get_paginated_response(self, data):
+        return Response({
+            "orders": data,
+            "page": self.page.number,
+            "pages": self.page.paginator.num_pages,
+            "total": self.page.paginator.count,
+        })
+
+
+class AdminOrderPagination(PageNumberPagination):
+    """20 orders per page — used by the admin all-orders view."""
+    page_size = 20
+
+    def get_paginated_response(self, data):
+        return Response({
+            "orders": data,
+            "page": self.page.number,
+            "pages": self.page.paginator.num_pages,
+            "total": self.page.paginator.count,
+        })
+
+
+# =============================================================================
 # PRODUCT VIEWS
 # =============================================================================
 
@@ -61,25 +131,21 @@ logger = logging.getLogger(__name__)
 @permission_classes([AllowAny])
 def get_products(request):
     """
-    Get all products with filtering, search, and pagination.
+    Get all products with filtering, search, and DRF pagination.
     Query params: keyword, category, stock_status, approval_status, page
     """
     query = request.query_params.get("keyword")
     category_id = request.query_params.get("category")
-    stock_status = request.query_params.get("stock_status") 
-    approval_status = request.query_params.get("approval_status") # الفلتر الجديد
+    stock_status = request.query_params.get("stock_status")
+    approval_status = request.query_params.get("approval_status")
 
-    # Optimize query with select_related and prefetch_related
-    products = Product.objects.select_related("category", "user").prefetch_related(
-        "tags"
-    )
+    # Optimise query with select_related and prefetch_related
+    products = Product.objects.select_related("category", "user").prefetch_related("tags")
 
     # Filter by approval status
     if not request.user.is_staff:
-        # non-admin users only see approved products
         products = products.filter(approval_status="approved", is_active=True)
-    elif approval_status and approval_status != 'all':
-        # Admin filter by status
+    elif approval_status and approval_status != "all":
         products = products.filter(approval_status=approval_status)
 
     # Search filter
@@ -92,39 +158,26 @@ def get_products(request):
         )
 
     # Category filter
-    if category_id and category_id != 'all':
+    if category_id and category_id != "all":
         products = products.filter(category__id=category_id)
 
-    # Stock filter 
-    if stock_status and stock_status != 'all':
-        if stock_status == 'in-stock':
+    # Stock filter
+    if stock_status and stock_status != "all":
+        if stock_status == "in-stock":
             products = products.filter(count_in_stock__gt=5)
-        elif stock_status == 'low-stock':
+        elif stock_status == "low-stock":
             products = products.filter(count_in_stock__gt=0, count_in_stock__lte=5)
-        elif stock_status == 'out-of-stock':
+        elif stock_status == "out-of-stock":
             products = products.filter(count_in_stock=0)
 
-    # Order by creation date
     products = products.order_by("-created_at")
 
-    # Pagination
-    page = request.query_params.get("page", 1)
-    paginator = Paginator(products, 12)  # 12 products per page
+    # ── DRF Pagination ──────────────────────────────────────────────────────
+    paginator = ProductPagination()
+    result_page = paginator.paginate_queryset(products, request)
+    serializer = ProductSerializer(result_page, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
-    try:
-        products = paginator.page(page)
-    except (PageNotAnInteger, EmptyPage):
-        products = paginator.page(1)
-
-    serializer = ProductSerializer(products, many=True)
-    return Response(
-        {
-            "products": serializer.data,
-            "page": int(page),
-            "pages": paginator.num_pages,
-            "total": paginator.count,
-        }
-    )
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -142,10 +195,12 @@ def get_product(request, pk):
 
     # Only show non-approved products to admin or owner
     if product.approval_status != "approved" and not product.is_active:
-        if not request.user.is_staff and (not request.user.is_authenticated or product.user != request.user):
+        if not request.user.is_staff and (
+            not request.user.is_authenticated or product.user != request.user
+        ):
             return Response(
                 {"detail": "Product not found."},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
     serializer = ProductSerializer(product, many=False)
@@ -154,12 +209,11 @@ def get_product(request, pk):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-# تم إضافة JSONParser هنا لتقبل الدوال التي لا تحتوي على صور
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def create_product(request):
     """
     Create a new product.
-    Vendors create products in 'pending' status, admins can set status.
+    Vendors create products in 'pending' status; admins can set status directly.
     """
     data = request.data
     user = request.user
@@ -167,11 +221,11 @@ def create_product(request):
     # Validate required fields
     required_fields = ["name", "price", "category", "count_in_stock"]
     missing_fields = [field for field in required_fields if not data.get(field)]
-    
+
     if missing_fields:
         return Response(
             {"detail": f"Missing required fields: {', '.join(missing_fields)}"},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     # Validate numeric fields
@@ -180,14 +234,14 @@ def create_product(request):
         if price <= 0:
             return Response(
                 {"detail": "Price must be greater than 0."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         count_in_stock = int(data.get("count_in_stock"))
         if count_in_stock < 0:
             return Response(
                 {"detail": "Stock count cannot be negative."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         discount_price = data.get("discount_price")
@@ -196,17 +250,17 @@ def create_product(request):
             if discount_price < 0:
                 return Response(
                     {"detail": "Discount price cannot be negative."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             if discount_price >= price:
                 return Response(
                     {"detail": "Discount price must be less than regular price."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
     except (ValueError, TypeError) as e:
         return Response(
             {"detail": f"Invalid numeric value: {str(e)}"},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     # Set approval status
@@ -215,7 +269,6 @@ def create_product(request):
         approval_status = data.get("approval_status", "approved")
 
     try:
-        # Create product
         product = Product.objects.create(
             user=user,
             name=data.get("name"),
@@ -229,18 +282,17 @@ def create_product(request):
             image=request.FILES.get("image"),
         )
 
-        # Add product images
+        # Add product gallery images
         images = request.FILES.getlist("images")
         if images:
-            ProductImage.objects.bulk_create([
-                ProductImage(product=product, image=img) for img in images
-            ])
+            ProductImage.objects.bulk_create(
+                [ProductImage(product=product, image=img) for img in images]
+            )
 
         # Add tags
         if "tags" in data:
             tags_data = data["tags"]
             tags_list = []
-
             try:
                 if isinstance(tags_data, str):
                     tags_list = json.loads(tags_data)
@@ -263,7 +315,7 @@ def create_product(request):
         logger.error(f"Error creating product: {str(e)}")
         return Response(
             {"detail": "Failed to create product. Please check your input."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
 
@@ -275,16 +327,13 @@ def delete_product_review(request, pk):
     product = get_object_or_404(Product, pk=pk)
 
     try:
-        # البحث عن التقييم الخاص باليوزر وحذفه
         review = product.reviews.get(user=user)
         review.delete()
 
-        # إعادة حساب تقييم المنتج بعد الحذف
         stats = product.reviews.aggregate(
             avg_rating=Avg("rating"),
-            count=Count("id")
+            count=Count("id"),
         )
-
         product.rating = stats["avg_rating"] or Decimal("0.00")
         product.num_reviews = stats["count"] or 0
         product.save()
@@ -295,17 +344,17 @@ def delete_product_review(request, pk):
     except Review.DoesNotExist:
         return Response(
             {"detail": "You have not reviewed this product yet."},
-            status=status.HTTP_404_NOT_FOUND
+            status=status.HTTP_404_NOT_FOUND,
         )
+
 
 @api_view(["PUT"])
 @permission_classes([IsAuthenticated])
-# التعديل الرئيسي لحل مشكلة 415 هو إضافة JSONParser هنا
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def update_product(request, pk):
     """
     Update existing product.
-    Only product owner or admin can update.
+    Only the product owner or an admin can update.
     """
     product = get_object_or_404(Product, pk=pk)
     data = request.data
@@ -314,7 +363,7 @@ def update_product(request, pk):
     if product.user != request.user and not request.user.is_staff:
         return Response(
             {"detail": "You are not authorized to update this product."},
-            status=status.HTTP_403_FORBIDDEN
+            status=status.HTTP_403_FORBIDDEN,
         )
 
     # Update basic fields
@@ -329,7 +378,7 @@ def update_product(request, pk):
             if price <= 0:
                 return Response(
                     {"detail": "Price must be greater than 0."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             product.price = price
 
@@ -339,8 +388,10 @@ def update_product(request, pk):
                 discount_price = Decimal(str(discount_price))
                 if discount_price < 0 or discount_price >= product.price:
                     return Response(
-                        {"detail": "Discount price must be less than regular price and non-negative."},
-                        status=status.HTTP_400_BAD_REQUEST
+                        {
+                            "detail": "Discount price must be less than regular price and non-negative."
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
                 product.discount_price = discount_price
             else:
@@ -351,14 +402,14 @@ def update_product(request, pk):
             if count_in_stock < 0:
                 return Response(
                     {"detail": "Stock count cannot be negative."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             product.count_in_stock = count_in_stock
 
     except (ValueError, TypeError) as e:
         return Response(
             {"detail": f"Invalid numeric value: {str(e)}"},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     # Only admin can change approval status
@@ -376,9 +427,9 @@ def update_product(request, pk):
     # Add new gallery images
     images = request.FILES.getlist("images")
     if images:
-        ProductImage.objects.bulk_create([
-            ProductImage(product=product, image=img) for img in images
-        ])
+        ProductImage.objects.bulk_create(
+            [ProductImage(product=product, image=img) for img in images]
+        )
 
     # Update tags
     if "tags" in data:
@@ -400,7 +451,6 @@ def update_product(request, pk):
         except json.JSONDecodeError as e:
             logger.warning(f"Error parsing tags for product {product.id}: {e}")
 
-    # Save product
     try:
         product.save()
         logger.info(f"Product updated: {product.id} by user {request.user.id}")
@@ -410,7 +460,7 @@ def update_product(request, pk):
         logger.error(f"Error updating product {product.id}: {str(e)}")
         return Response(
             {"detail": "Failed to update product."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
 
@@ -420,11 +470,10 @@ def delete_product(request, pk):
     """Delete product (only owner or admin)"""
     product = get_object_or_404(Product, pk=pk)
 
-    # Authorization check
     if product.user != request.user and not request.user.is_staff:
         return Response(
             {"detail": "You are not authorized to delete this product."},
-            status=status.HTTP_403_FORBIDDEN
+            status=status.HTTP_403_FORBIDDEN,
         )
 
     product_id = product.id
@@ -439,11 +488,10 @@ def delete_product_image(request, pk):
     """Delete product gallery image (only owner or admin)"""
     image = get_object_or_404(ProductImage, pk=pk)
 
-    # Authorization check
     if image.product.user != request.user and not request.user.is_staff:
         return Response(
             {"detail": "You are not authorized to delete this image."},
-            status=status.HTTP_403_FORBIDDEN
+            status=status.HTTP_403_FORBIDDEN,
         )
 
     image.delete()
@@ -458,29 +506,24 @@ def delete_product_image(request, pk):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_my_products(request):
-    """Get all products created by current user with pagination"""
+    """
+    Get all products created by the current user with DRF pagination.
+    Returns 20 products per page.
+    """
     user = request.user
 
-    products = Product.objects.filter(user=user).select_related("category").prefetch_related("tags").order_by("-created_at")
-
-    # Pagination
-    page = request.query_params.get("page", 1)
-    paginator = Paginator(products, 20)
-
-    try:
-        products = paginator.page(page)
-    except (PageNotAnInteger, EmptyPage):
-        products = paginator.page(1)
-
-    serializer = ProductSerializer(products, many=True)
-    return Response(
-        {
-            "products": serializer.data,
-            "page": int(page),
-            "pages": paginator.num_pages,
-            "total": paginator.count,
-        }
+    products = (
+        Product.objects.filter(user=user)
+        .select_related("category")
+        .prefetch_related("tags")
+        .order_by("-created_at")
     )
+
+    # ── DRF Pagination ──────────────────────────────────────────────────────
+    paginator = MyProductPagination()
+    result_page = paginator.paginate_queryset(products, request)
+    serializer = ProductSerializer(result_page, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 # =============================================================================
@@ -516,18 +559,18 @@ def create_category(request):
         if not name:
             return Response(
                 {"detail": "Category name is required."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if Category.objects.filter(name__iexact=name).exists():
             return Response(
                 {"detail": "Category with this name already exists."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         category = Category.objects.create(
             name=name,
-            description=request.data.get("description", "")
+            description=request.data.get("description", ""),
         )
         logger.info(f"Category created: {category.id}")
         return Response(CategorySerializer(category).data, status=status.HTTP_201_CREATED)
@@ -536,7 +579,7 @@ def create_category(request):
         logger.error(f"Error creating category: {str(e)}")
         return Response(
             {"detail": "Failed to create category."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
 
@@ -545,12 +588,12 @@ def create_category(request):
 def update_category(request, pk):
     """Update category (admin only)"""
     category = get_object_or_404(Category, pk=pk)
-    
+
     name = request.data.get("name", category.name).strip()
     if not name:
         return Response(
             {"detail": "Category name cannot be empty."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     category.name = name
@@ -566,12 +609,11 @@ def update_category(request, pk):
 def delete_category(request, pk):
     """Delete category (admin only)"""
     category = get_object_or_404(Category, pk=pk)
-    
-    # Check if category has products
+
     if category.products.exists():
         return Response(
             {"detail": "Cannot delete category with existing products."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     category_id = category.id
@@ -589,13 +631,13 @@ def create_tag(request):
         if not name:
             return Response(
                 {"detail": "Tag name is required."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if Tag.objects.filter(name__iexact=name).exists():
             return Response(
                 {"detail": "Tag with this name already exists."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         tag = Tag.objects.create(name=name)
@@ -606,7 +648,7 @@ def create_tag(request):
         logger.error(f"Error creating tag: {str(e)}")
         return Response(
             {"detail": "Failed to create tag."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
 
@@ -615,12 +657,12 @@ def create_tag(request):
 def update_tag(request, pk):
     """Update tag (admin only)"""
     tag = get_object_or_404(Tag, pk=pk)
-    
+
     name = request.data.get("name", tag.name).strip()
     if not name:
         return Response(
             {"detail": "Tag name cannot be empty."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     tag.name = name
@@ -651,7 +693,7 @@ def delete_tag(request, pk):
 def add_order_items(request):
     """
     Create a new order with order items.
-    Uses transaction to ensure data consistency.
+    Uses a database transaction to ensure data consistency.
     """
     user = request.user
     data = request.data
@@ -660,50 +702,50 @@ def add_order_items(request):
     if not order_items or len(order_items) == 0:
         return Response(
             {"detail": "No order items provided."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     # Validate decimal fields
     try:
         tax_price = Decimal(str(data.get("tax_price", "0.00")))
         shipping_price = Decimal(str(data.get("shipping_price", "0.00")))
-        
+
         if tax_price < 0 or shipping_price < 0:
             return Response(
                 {"detail": "Tax and shipping prices cannot be negative."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
     except (ValueError, TypeError):
         return Response(
             {"detail": "Invalid price format."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     # Check for idempotency key to prevent duplicate orders
     idempotency_key = data.get("idempotency_key")
     if idempotency_key:
-        existing_order = Order.objects.filter(
-            idempotency_key=idempotency_key
-        ).first()
+        existing_order = Order.objects.filter(idempotency_key=idempotency_key).first()
         if existing_order:
             logger.warning(
                 f"Duplicate order attempt with key: {idempotency_key} by user {user.id}"
             )
             return Response(
                 {"id": existing_order.id, "detail": "Order already exists."},
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
 
     # Validate shipping address
     shipping_address = data.get("shipping_address")
-    if not shipping_address or not all([
-        shipping_address.get("address"),
-        shipping_address.get("city"),
-        shipping_address.get("country")
-    ]):
+    if not shipping_address or not all(
+        [
+            shipping_address.get("address"),
+            shipping_address.get("city"),
+            shipping_address.get("country"),
+        ]
+    ):
         return Response(
             {"detail": "Complete shipping address is required."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     try:
@@ -713,7 +755,7 @@ def add_order_items(request):
             payment_method=data.get("payment_method", ""),
             tax_price=tax_price,
             shipping_price=shipping_price,
-            total_price=Decimal("0.00"),  # Will be calculated
+            total_price=Decimal("0.00"),  # calculated below
             idempotency_key=idempotency_key,
         )
 
@@ -740,20 +782,15 @@ def add_order_items(request):
                 logger.warning(f"Product {item_data['id']} not found in order creation")
                 continue
 
-            # Validate stock availability
             qty = int(item_data.get("qty", 1))
             if product.count_in_stock < qty:
                 raise ValueError(
                     f"Product '{product.name}' only has {product.count_in_stock} units in stock."
                 )
 
-            # Get final price (discount or regular)
             final_price = product.final_price
-
-            # Calculate total for these items
             total_items_price += final_price * Decimal(str(qty))
 
-            # Prepare order item for bulk creation
             items_to_create.append(
                 OrderItem(
                     product=product,
@@ -765,36 +802,32 @@ def add_order_items(request):
                 )
             )
 
-            # Reduce stock using F() expression to prevent race conditions
+            # Reduce stock using F() to prevent race conditions
             Product.objects.filter(pk=product.pk).update(
                 count_in_stock=F("count_in_stock") - qty
             )
 
-        # Bulk create order items
         OrderItem.objects.bulk_create(items_to_create)
 
-        # Update order total price
         order.total_price = total_items_price + shipping_price + tax_price
         order.save()
 
-        logger.info(f"Order created: {order.id} by user {user.id}, total: {order.total_price}")
-
+        logger.info(
+            f"Order created: {order.id} by user {user.id}, total: {order.total_price}"
+        )
         return Response(
             {"id": order.id, "total": str(order.total_price)},
-            status=status.HTTP_201_CREATED
+            status=status.HTTP_201_CREATED,
         )
 
     except ValueError as e:
         logger.error(f"Order creation failed for user {user.id}: {str(e)}")
-        return Response(
-            {"detail": str(e)},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Unexpected error in order creation: {str(e)}")
         return Response(
             {"detail": "Failed to create order. Please try again."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
@@ -805,17 +838,15 @@ def get_order_by_id(request, pk):
     user = request.user
 
     try:
-        order = Order.objects.select_related("user", "shipping_address").prefetch_related(
-            Prefetch(
-                "items",
-                queryset=OrderItem.objects.select_related("product")
+        order = (
+            Order.objects.select_related("user", "shipping_address")
+            .prefetch_related(
+                Prefetch("items", queryset=OrderItem.objects.select_related("product"))
             )
-        ).get(id=pk)
+            .get(id=pk)
+        )
 
-        # Check authorization
-        is_seller_item = OrderItem.objects.filter(
-            order=order, product__user=user
-        ).exists()
+        is_seller_item = OrderItem.objects.filter(order=order, product__user=user).exists()
 
         if user.is_staff or order.user == user or is_seller_item:
             serializer = OrderSerializer(order, many=False)
@@ -823,61 +854,55 @@ def get_order_by_id(request, pk):
         else:
             return Response(
                 {"detail": "You are not authorized to view this order."},
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
 
     except Order.DoesNotExist:
         return Response(
             {"detail": "Order not found."},
-            status=status.HTTP_404_NOT_FOUND
+            status=status.HTTP_404_NOT_FOUND,
         )
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_my_orders(request):
-    """Get all orders for current user with pagination"""
+    """
+    Get all orders for the current customer with DRF pagination.
+    Returns 10 orders per page.
+    """
     user = request.user
 
-    orders = Order.objects.filter(user=user).select_related("shipping_address").prefetch_related(
-        Prefetch("items", queryset=OrderItem.objects.select_related("product"))
-    ).order_by("-created_at")
-
-    # Pagination
-    page = request.query_params.get("page", 1)
-    paginator = Paginator(orders, 10)
-
-    try:
-        orders = paginator.page(page)
-    except (PageNotAnInteger, EmptyPage):
-        orders = paginator.page(1)
-
-    serializer = OrderSerializer(orders, many=True)
-    return Response(
-        {
-            "orders": serializer.data,
-            "page": int(page),
-            "pages": paginator.num_pages,
-            "total": paginator.count,
-        }
+    orders = (
+        Order.objects.filter(user=user)
+        .select_related("shipping_address")
+        .prefetch_related(
+            Prefetch("items", queryset=OrderItem.objects.select_related("product"))
+        )
+        .order_by("-created_at")
     )
+
+    # ── DRF Pagination ──────────────────────────────────────────────────────
+    paginator = OrderPagination()
+    result_page = paginator.paginate_queryset(orders, request)
+    serializer = OrderSerializer(result_page, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 @api_view(["PUT"])
 @permission_classes([IsAuthenticated])
 def update_order_to_paid(request, pk):
-    """Mark order as paid (should integrate with payment gateway)"""
+    """Mark order as paid (should integrate with a payment gateway)"""
     order = get_object_or_404(Order, pk=pk)
 
-    # Only order owner or admin can mark as paid
     if order.user != request.user and not request.user.is_staff:
         return Response(
             {"detail": "You are not authorized to update this order."},
-            status=status.HTTP_403_FORBIDDEN
+            status=status.HTTP_403_FORBIDDEN,
         )
 
     order.is_paid = True
-    order.paid_at = timezone.now()  # FIXED: Using timezone-aware datetime
+    order.paid_at = timezone.now()
     order.payment_id = request.data.get("payment_id", "")
     order.save()
 
@@ -888,29 +913,23 @@ def update_order_to_paid(request, pk):
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def get_orders(request):
-    """Get all orders (admin only) with pagination"""
-    orders = Order.objects.select_related("user", "shipping_address").prefetch_related(
-        Prefetch("items", queryset=OrderItem.objects.select_related("product"))
-    ).order_by("-created_at")
-
-    # Pagination
-    page = request.query_params.get("page", 1)
-    paginator = Paginator(orders, 20)
-
-    try:
-        orders = paginator.page(page)
-    except (PageNotAnInteger, EmptyPage):
-        orders = paginator.page(1)
-
-    serializer = OrderSerializer(orders, many=True)
-    return Response(
-        {
-            "orders": serializer.data,
-            "page": int(page),
-            "pages": paginator.num_pages,
-            "total": paginator.count,
-        }
+    """
+    Get all orders (admin only) with DRF pagination.
+    Returns 20 orders per page.
+    """
+    orders = (
+        Order.objects.select_related("user", "shipping_address")
+        .prefetch_related(
+            Prefetch("items", queryset=OrderItem.objects.select_related("product"))
+        )
+        .order_by("-created_at")
     )
+
+    # ── DRF Pagination ──────────────────────────────────────────────────────
+    paginator = AdminOrderPagination()
+    result_page = paginator.paginate_queryset(orders, request)
+    serializer = OrderSerializer(result_page, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 @api_view(["PUT"])
@@ -918,9 +937,9 @@ def get_orders(request):
 def update_order_to_delivered(request, pk):
     """Mark order as delivered (admin only)"""
     order = get_object_or_404(Order, pk=pk)
-    
+
     order.is_delivered = True
-    order.delivered_at = timezone.now()  # FIXED: Using timezone-aware datetime
+    order.delivered_at = timezone.now()
     order.status = "Delivered"
     order.tracking_number = request.data.get("tracking_number", "")
     order.save()
@@ -936,7 +955,7 @@ def delete_order(request, pk):
     order = get_object_or_404(Order, pk=pk)
     order_id = order.id
     order.delete()
-    
+
     logger.info(f"Order {order_id} deleted by admin")
     return Response({"detail": "Order deleted successfully."})
 
@@ -953,29 +972,26 @@ def create_product_review(request, pk):
     product = get_object_or_404(Product, id=pk)
     data = request.data
 
-    # Check if user already reviewed this product
     if product.reviews.filter(user=user).exists():
         return Response(
             {"detail": "You have already reviewed this product."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Validate rating
     rating = data.get("rating", 0)
     try:
         rating = int(rating)
         if not 1 <= rating <= 5:
             return Response(
                 {"detail": "Rating must be between 1 and 5."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
     except (ValueError, TypeError):
         return Response(
             {"detail": "Invalid rating value."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Create review
     Review.objects.create(
         user=user,
         product=product,
@@ -983,12 +999,7 @@ def create_product_review(request, pk):
         comment=data.get("comment", ""),
     )
 
-    # Update product rating and review count
-    stats = product.reviews.aggregate(
-        avg_rating=Avg("rating"),  # FIXED: Proper import
-        count=Count("id")  # FIXED: Proper import
-    )
-
+    stats = product.reviews.aggregate(avg_rating=Avg("rating"), count=Count("id"))
     product.rating = stats["avg_rating"] or Decimal("0.00")
     product.num_reviews = stats["count"] or 0
     product.save()
@@ -1005,16 +1016,14 @@ def update_product_review(request, pk):
     product = get_object_or_404(Product, pk=pk)
     data = request.data
 
-    # Get user's existing review
     try:
         review = product.reviews.get(user=user)
     except Review.DoesNotExist:
         return Response(
             {"detail": "You have not reviewed this product yet."},
-            status=status.HTTP_404_NOT_FOUND
+            status=status.HTTP_404_NOT_FOUND,
         )
 
-    # Validate rating
     rating = data.get("rating")
     if rating is not None:
         try:
@@ -1022,27 +1031,21 @@ def update_product_review(request, pk):
             if not 1 <= rating <= 5:
                 return Response(
                     {"detail": "Rating must be between 1 and 5."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             review.rating = rating
         except (ValueError, TypeError):
             return Response(
                 {"detail": "Invalid rating value."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-    # Update comment
     if "comment" in data:
         review.comment = data["comment"]
 
     review.save()
 
-    # Recalculate product rating
-    stats = product.reviews.aggregate(
-        avg_rating=Avg("rating"),
-        count=Count("id")
-    )
-
+    stats = product.reviews.aggregate(avg_rating=Avg("rating"), count=Count("id"))
     product.rating = stats["avg_rating"] or Decimal("0.00")
     product.num_reviews = stats["count"] or 0
     product.save()
@@ -1060,27 +1063,32 @@ def update_product_review(request, pk):
 def get_cart(request):
     """Get current user's cart items"""
     user = request.user
-    cart_items = CartItem.objects.select_related("product").filter(user=user).order_by("-created_at")
+    cart_items = (
+        CartItem.objects.select_related("product")
+        .filter(user=user)
+        .order_by("-created_at")
+    )
     serializer = CartItemSerializer(cart_items, many=True)
-    
-    # Calculate cart total
+
     total = sum(
         item.product.final_price * Decimal(str(item.qty))
         for item in cart_items
         if item.product
     )
-    
-    return Response({
-        "cart_items": serializer.data,
-        "total": str(total),
-        "count": cart_items.count()
-    })
+
+    return Response(
+        {
+            "cart_items": serializer.data,
+            "total": str(total),
+            "count": cart_items.count(),
+        }
+    )
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def add_to_cart(request):
-    """Add product to cart or update quantity if already exists"""
+    """Add product to cart or update quantity if it already exists"""
     user = request.user
     data = request.data
     product_id = data.get("product_id")
@@ -1088,34 +1096,31 @@ def add_to_cart(request):
     if not product_id:
         return Response(
             {"detail": "Product ID is required."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Validate quantity
     try:
         qty = int(data.get("qty", 1))
         if qty < 1:
             return Response(
                 {"detail": "Quantity must be at least 1."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
     except (ValueError, TypeError):
         return Response(
             {"detail": "Invalid quantity value."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     product = get_object_or_404(Product, id=product_id)
 
-    # Check stock availability
     cart_item, created = CartItem.objects.get_or_create(user=user, product=product)
-
     new_qty = qty if created else cart_item.qty + qty
 
     if new_qty > product.count_in_stock:
         return Response(
             {"detail": f"Only {product.count_in_stock} units available in stock."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     cart_item.qty = new_qty
@@ -1136,37 +1141,37 @@ def update_cart_item(request):
     if not product_id:
         return Response(
             {"detail": "Product ID is required."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Validate quantity
     try:
         qty = int(data.get("qty"))
         if qty < 1:
             return Response(
                 {"detail": "Quantity must be at least 1."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
     except (ValueError, TypeError):
         return Response(
             {"detail": "Invalid quantity value."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     product = get_object_or_404(Product, id=product_id)
     cart_item = get_object_or_404(CartItem, user=user, product=product)
 
-    # FIXED: Validate against stock
     if qty > product.count_in_stock:
         return Response(
             {"detail": f"Only {product.count_in_stock} units available in stock."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     cart_item.qty = qty
     cart_item.save()
 
-    logger.info(f"Cart item updated for user {user.id}, product {product.id}, qty: {qty}")
+    logger.info(
+        f"Cart item updated for user {user.id}, product {product.id}, qty: {qty}"
+    )
     return Response({"detail": "Cart item updated.", "qty": qty})
 
 
@@ -1176,7 +1181,7 @@ def remove_from_cart(request, pk):
     """Remove item from cart"""
     cart_item = get_object_or_404(CartItem, user=request.user, product__id=pk)
     cart_item.delete()
-    
+
     logger.info(f"Product {pk} removed from cart for user {request.user.id}")
     return Response({"detail": "Item removed from cart."})
 
@@ -1186,8 +1191,10 @@ def remove_from_cart(request, pk):
 def clear_cart(request):
     """Clear all items from cart"""
     deleted_count, _ = CartItem.objects.filter(user=request.user).delete()
-    
-    logger.info(f"Cart cleared for user {request.user.id}, {deleted_count} items removed")
+
+    logger.info(
+        f"Cart cleared for user {request.user.id}, {deleted_count} items removed"
+    )
     return Response({"detail": f"Cart cleared. {deleted_count} items removed."})
 
 
@@ -1200,13 +1207,19 @@ def clear_cart(request):
 def get_wishlist(request):
     """Get current user's wishlist"""
     user = request.user
-    wishlist = WishlistItem.objects.select_related("product").filter(user=user).order_by("-created_at")
+    wishlist = (
+        WishlistItem.objects.select_related("product")
+        .filter(user=user)
+        .order_by("-created_at")
+    )
     serializer = WishlistItemSerializer(wishlist, many=True)
-    
-    return Response({
-        "wishlist_items": serializer.data,
-        "count": wishlist.count()
-    })
+
+    return Response(
+        {
+            "wishlist_items": serializer.data,
+            "count": wishlist.count(),
+        }
+    )
 
 
 @api_view(["POST"])
@@ -1219,11 +1232,10 @@ def toggle_wishlist(request):
     if not product_id:
         return Response(
             {"detail": "Product ID is required."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     product = get_object_or_404(Product, id=product_id)
-
     item = WishlistItem.objects.filter(user=user, product=product)
 
     if item.exists():
@@ -1247,11 +1259,11 @@ def get_top_products(request):
     products = (
         Product.objects.filter(
             rating__gte=4,
-            approval_status="approved",  # FIXED: Added approval filter
-            is_active=True
+            approval_status="approved",
+            is_active=True,
         )
         .select_related("category")
-        .order_by("-rating")[:5]  # FIXED: Proper slice syntax
+        .order_by("-rating")[:5]
     )
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
@@ -1261,16 +1273,19 @@ def get_top_products(request):
 @permission_classes([AllowAny])
 def get_products_by_category(request):
     """
-    Get products grouped by category (optimized to avoid N+1 queries)
+    Get products grouped by category.
+    Optimised with prefetch_related to avoid N+1 queries.
     """
-    # FIXED: Use prefetch_related to avoid N+1 queries
     categories = Category.objects.prefetch_related(
         Prefetch(
             "products",
             queryset=Product.objects.filter(
                 approval_status="approved",
-                is_active=True
-            ).select_related("user").prefetch_related("tags").order_by("-created_at")
+                is_active=True,
+            )
+            .select_related("user")
+            .prefetch_related("tags")
+            .order_by("-created_at"),
         )
     ).all()
 
@@ -1279,14 +1294,48 @@ def get_products_by_category(request):
         products = cat.products.all()
         if products:
             serializer = ProductSerializer(products, many=True)
-            data.append({
-                "id": cat.id,
-                "name": cat.name,
-                "slug": cat.slug,
-                "products": serializer.data
-            })
+            data.append(
+                {
+                    "id": cat.id,
+                    "name": cat.name,
+                    "slug": cat.slug,
+                    "products": serializer.data,
+                }
+            )
 
     return Response(data)
+
+
+# =============================================================================
+# SELLER ORDERS — store app (migrated from users app)
+# =============================================================================
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_seller_orders(request):
+    """
+    Get all orders that contain at least one product belonging to the
+    current authenticated seller/vendor, with DRF pagination (10/page).
+
+    Route: GET /api/orders/seller-orders/
+    """
+    user = request.user
+
+    orders = (
+        Order.objects.filter(items__product__user=user)
+        .select_related("user", "shipping_address")
+        .prefetch_related(
+            Prefetch("items", queryset=OrderItem.objects.select_related("product"))
+        )
+        .distinct()
+        .order_by("-created_at")
+    )
+
+    # ── DRF Pagination ──────────────────────────────────────────────────────
+    paginator = OrderPagination()
+    result_page = paginator.paginate_queryset(orders, request)
+    serializer = OrderSerializer(result_page, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 # =============================================================================
@@ -1297,31 +1346,33 @@ def get_products_by_category(request):
 @permission_classes([IsAdminUser])
 def get_dashboard_stats(request):
     """Get dashboard statistics for admin"""
-    # Calculate stats with optimized queries
-    total_sales = Order.objects.aggregate(sum=Sum("total_price"))["sum"] or Decimal("0.00")
+    total_sales = (
+        Order.objects.aggregate(sum=Sum("total_price"))["sum"] or Decimal("0.00")
+    )
     total_orders = Order.objects.count()
     total_products = Product.objects.count()
     total_users = User.objects.count()
 
-    # Recent orders for chart
     recent_orders = Order.objects.select_related("user").order_by("-created_at")[:10]
 
     orders_data = [
         {
             "date": o.created_at.strftime("%d/%m"),
             "sales": str(o.total_price),
-            "order_id": o.id
+            "order_id": o.id,
         }
         for o in reversed(recent_orders)
     ]
 
-    return Response({
-        "total_sales": str(total_sales),
-        "total_orders": total_orders,
-        "total_products": total_products,
-        "total_users": total_users,
-        "sales_chart": orders_data,
-    })
+    return Response(
+        {
+            "total_sales": str(total_sales),
+            "total_orders": total_orders,
+            "total_products": total_products,
+            "total_users": total_users,
+            "sales_chart": orders_data,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -1332,34 +1383,31 @@ def export_orders_csv(request):
     response["Content-Disposition"] = 'attachment; filename="orders_report.csv"'
 
     writer = csv.writer(response)
-    writer.writerow([
-        "Order ID",
-        "Customer",
-        "Email",
-        "Date",
-        "Total Price",
-        "Paid",
-        "Delivered",
-        "Status"
-    ])
+    writer.writerow(
+        ["Order ID", "Customer", "Email", "Date", "Total Price", "Paid", "Delivered", "Status"]
+    )
 
-    # FIXED: Use select_related to avoid N+1 queries
     orders = Order.objects.select_related("user").order_by("-created_at")
 
     for order in orders:
-        writer.writerow([
-            order.id,
-            f"{order.user.first_name} {order.user.last_name}".strip() if order.user else "Guest",
-            order.user.email if order.user else "",
-            order.created_at.strftime("%Y-%m-%d %H:%M"),
-            str(order.total_price),
-            "Yes" if order.is_paid else "No",
-            "Yes" if order.is_delivered else "No",
-            order.status,
-        ])
+        writer.writerow(
+            [
+                order.id,
+                f"{order.user.first_name} {order.user.last_name}".strip()
+                if order.user
+                else "Guest",
+                order.user.email if order.user else "",
+                order.created_at.strftime("%Y-%m-%d %H:%M"),
+                str(order.total_price),
+                "Yes" if order.is_paid else "No",
+                "Yes" if order.is_delivered else "No",
+                order.status,
+            ]
+        )
 
     logger.info(f"Orders CSV exported by admin user {request.user.id}")
     return response
+
 
 # =============================================================================
 # STORE SETTINGS VIEWS
@@ -1400,9 +1448,7 @@ def update_store_settings(request):
     Returns the full updated settings object.
     """
     settings_obj = StoreSettings.get_settings()
-    serializer = StoreSettingsSerializer(
-        settings_obj, data=request.data, partial=True
-    )
+    serializer = StoreSettingsSerializer(settings_obj, data=request.data, partial=True)
 
     if serializer.is_valid():
         serializer.save()
@@ -1419,39 +1465,3 @@ def update_store_settings(request):
         serializer.errors,
     )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_seller_orders(request):
-    """
-    Get all orders that contain at least one product belonging to the current seller/vendor
-    """
-    user = request.user
-    
-    # نجلب الطلبات التي تحتوي على الأقل على منتج واحد يمتلكه هذا البائع
-    orders = Order.objects.filter(
-        items__product__user=user
-    ).select_related("user", "shipping_address").prefetch_related(
-        Prefetch("items", queryset=OrderItem.objects.select_related("product"))
-    ).distinct().order_by("-created_at")
-
-    # تقسيم الصفحات (Pagination)
-    page = request.query_params.get("page", 1)
-    paginator = Paginator(orders, 10)
-
-    try:
-        orders = paginator.page(page)
-    except (PageNotAnInteger, EmptyPage):
-        orders = paginator.page(1)
-
-    # تحويل البيانات باستخدام نفس الـ Serializer الأساسي
-    serializer = OrderSerializer(orders, many=True)
-    return Response(
-        {
-            "orders": serializer.data,
-            "page": int(page),
-            "pages": paginator.num_pages,
-            "total": paginator.count,
-        }
-    )

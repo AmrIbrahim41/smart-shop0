@@ -35,6 +35,7 @@ const ProfileScreen = () => {
     city: '',
     country: '',
     birthdate: '',
+    oldPassword: '',
     password: '',
     confirmPassword: ''
   });

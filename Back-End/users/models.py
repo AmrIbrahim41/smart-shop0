@@ -5,8 +5,6 @@ Extended user profile with customer/vendor support
 
 from django.db import models
 from django.contrib.auth.models import User
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,7 +13,7 @@ logger = logging.getLogger(__name__)
 class Profile(models.Model):
     """
     Extended user profile with additional information.
-    Auto-created when a new user is registered.
+    Created explicitly during registration or first login.
     """
     
     USER_TYPE_CHOICES = (
@@ -74,40 +72,3 @@ class Profile(models.Model):
     def full_name(self):
         """Get user's full name"""
         return f"{self.user.first_name} {self.user.last_name}".strip()
-
-
-# =============================================================================
-# SIGNALS
-# =============================================================================
-
-@receiver(post_save, sender=User)
-def create_user_profile(sender, instance, created, **kwargs):
-    """
-    Automatically create a Profile when a User is created.
-    """
-    if created:
-        try:
-            Profile.objects.create(user=instance)
-            logger.info(f"Profile created for user {instance.id}")
-        except Exception as e:
-            logger.error(f"Failed to create profile for user {instance.id}: {str(e)}")
-
-
-@receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
-    """
-    Save the profile when user is saved.
-    Creates profile if it doesn't exist (for existing users).
-    """
-    if hasattr(instance, "profile"):
-        try:
-            instance.profile.save()
-        except Exception as e:
-            logger.error(f"Failed to save profile for user {instance.id}: {str(e)}")
-    else:
-        # Create profile if it doesn't exist (for existing users before migration)
-        try:
-            Profile.objects.create(user=instance)
-            logger.info(f"Profile retroactively created for user {instance.id}")
-        except Exception as e:
-            logger.error(f"Failed to create profile for existing user {instance.id}: {str(e)}")

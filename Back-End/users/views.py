@@ -13,7 +13,6 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db import transaction
 
 from rest_framework.decorators import api_view, permission_classes, parser_classes
@@ -21,6 +20,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from store.models import OrderItem
@@ -28,6 +28,9 @@ from .serializers import (
     UserSerializer,
     UserSerializerWithToken,
     MyTokenObtainPairSerializer,
+    RegisterSerializer,
+    ChangePasswordSerializer,
+    VendorOrderItemSerializer,
 )
 from .models import Profile
 
@@ -51,73 +54,27 @@ class MyTokenObtainPairView(TokenObtainPairView):
 @permission_classes([AllowAny])
 def register_user(request):
     """
-    Register a new user with email activation.
+    Register a new user with email activation using RegisterSerializer.
     Creates inactive user until email is verified.
     """
-    data = request.data
-
-    # Validate required fields
-    required_fields = ["email", "password", "first_name"]
-    missing_fields = [field for field in required_fields if not data.get(field)]
+    serializer = RegisterSerializer(data=request.data)
     
-    if missing_fields:
-        return Response(
-            {"detail": f"Missing required fields: {', '.join(missing_fields)}"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    email = data["email"].lower().strip()
-
-    # Check if email already exists
-    if User.objects.filter(email=email).exists():
-        return Response(
-            {"detail": "This email is already registered."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    # Validate password
-    password = data.get("password")
-    try:
-        validate_password(password)
-    except DjangoValidationError as e:
-        return Response(
-            {"detail": list(e.messages)},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    try:
-        with transaction.atomic():
-            # Create user (inactive until email verification)
-            user = User.objects.create(
-                first_name=data.get("first_name", ""),
-                last_name=data.get("last_name", ""),
-                username=email,
-                email=email,
-                password=make_password(password),
-                is_active=False,
-            )
-
-            # Update profile
-            try:
-                profile = user.profile
-                profile.phone = data.get("phone", "")
-                profile.user_type = data.get("type", "customer")
-                profile.save()
-            except Exception as e:
-                logger.error(f"Profile update failed for user {user.email}: {str(e)}")
-                raise Exception("Profile creation failed")
+    if serializer.is_valid():
+        try:
+            # User and Profile creation is handled atomically in the serializer
+            user = serializer.save()
 
             # Generate activation token
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
 
-        # Build activation link
-        frontend_url = settings.FRONTEND_URL
-        activation_link = f"{frontend_url}/activate/{uid}/{token}/"
+            # Build activation link
+            frontend_url = settings.FRONTEND_URL
+            activation_link = f"{frontend_url}/activate/{uid}/{token}/"
 
-        # Send activation email
-        subject = "Activate your Smart Shop account"
-        message = f"""
+            # Send activation email
+            subject = "Activate your Smart Shop account"
+            message = f"""
 Hello {user.first_name},
 
 Welcome to Smart Shop! Please click the link below to activate your account:
@@ -132,37 +89,30 @@ Best regards,
 Smart Shop Team
 """
 
-        try:
             send_mail(
                 subject,
                 message,
                 settings.DEFAULT_FROM_EMAIL,
-                [email],
+                [user.email],
                 fail_silently=False,
             )
-            logger.info(f"Activation email sent to {email}")
-        except Exception as e:
-            logger.error(f"Failed to send activation email to {email}: {str(e)}")
+            logger.info(f"Activation email sent to {user.email}")
+
             return Response(
                 {
-                    "detail": "Account created but failed to send activation email. Please contact support."
+                    "detail": "Account created successfully. Please check your email to activate your account."
                 },
                 status=status.HTTP_201_CREATED
             )
 
-        return Response(
-            {
-                "detail": "Account created successfully. Please check your email to activate your account."
-            },
-            status=status.HTTP_201_CREATED
-        )
-
-    except Exception as e:
-        logger.error(f"Registration error: {str(e)}")
-        return Response(
-            {"detail": "Account creation failed. Please try again."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        except Exception as e:
+            logger.error(f"Registration/Email error: {str(e)}")
+            return Response(
+                {"detail": "Account created but failed to send activation email. Please contact support."},
+                status=status.HTTP_201_CREATED
+            )
+            
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["POST"])
@@ -217,33 +167,19 @@ def get_user_profile(request):
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
 def update_user_profile(request):
-    """Update current user's profile"""
+    """Update current user's profile information (Excludes Password Update)"""
     user = request.user
     data = request.data
 
-    # Update user fields
-    user.first_name = data.get("first_name", user.first_name)
-    user.last_name = data.get("last_name", user.last_name)
-
-    # Update password if provided
-    if data.get("password") and data.get("password") != "":
-        password = data["password"]
-        
-        try:
-            validate_password(password)
-            user.password = make_password(password)
-        except DjangoValidationError as e:
-            return Response(
-                {"detail": list(e.messages)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
     try:
         with transaction.atomic():
+            # Update User Base Fields
+            user.first_name = data.get("first_name", user.first_name)
+            user.last_name = data.get("last_name", user.last_name)
             user.save()
             
-            # Update profile
-            profile = user.profile
+            # Ensure profile exists, then update
+            profile, created = Profile.objects.get_or_create(user=user)
             profile.phone = data.get("phone", profile.phone)
             profile.city = data.get("city", profile.city)
             profile.country = data.get("country", profile.country)
@@ -269,6 +205,28 @@ def update_user_profile(request):
     return Response(serializer.data)
 
 
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    """Secure endpoint for users to change their own password"""
+    user = request.user
+    serializer = ChangePasswordSerializer(data=request.data)
+
+    if serializer.is_valid():
+        # Check old password
+        if not user.check_password(serializer.validated_data.get("old_password")):
+            return Response({"old_password": ["Wrong password."]}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Set new password
+        user.set_password(serializer.validated_data.get("new_password"))
+        user.save()
+        logger.info(f"Password changed successfully for user {user.id}")
+        
+        return Response({"detail": "Password updated successfully."}, status=status.HTTP_200_OK)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 # =============================================================================
 # PASSWORD RESET
 # =============================================================================
@@ -285,7 +243,6 @@ def forgot_password(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # التعديل الهام: استخدام filter بدلاً من get
     user = User.objects.filter(email=email).first()
         
     if user:
@@ -393,30 +350,29 @@ def reset_password(request, uid, token):
 # ADMIN USER MANAGEMENT
 # =============================================================================
 
+class CustomPagination(PageNumberPagination):
+    """Custom Pagination to match your React Frontend format"""
+    page_size = 10
+    
+    def get_paginated_response(self, data):
+        return Response({
+            'users': data,
+            'page': self.page.number,
+            'pages': self.page.paginator.num_pages,
+            'count': self.page.paginator.count
+        })
+
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def get_users(request):
-    """Get all users (admin only) - With Pagination"""
+    """Get all users (admin only) - With DRF Pagination"""
     users = User.objects.select_related("profile").all().order_by("-date_joined")
     
-    page = request.query_params.get('page', 1)
-    paginator = Paginator(users, 10) 
+    paginator = CustomPagination()
+    paginated_users = paginator.paginate_queryset(users, request)
     
-    try:
-        users_page = paginator.page(page)
-    except PageNotAnInteger:
-        users_page = paginator.page(1)
-    except EmptyPage:
-        users_page = paginator.page(paginator.num_pages)
-        
-    serializer = UserSerializer(users_page, many=True, context={"request": request})
-    
-    return Response({
-        'users': serializer.data,
-        'page': int(page),
-        'pages': paginator.num_pages,
-        'count': paginator.count
-    })
+    serializer = UserSerializer(paginated_users, many=True, context={"request": request})
+    return paginator.get_paginated_response(serializer.data)
 
 
 @api_view(["DELETE"])
@@ -463,14 +419,22 @@ def get_user_by_id(request, pk):
 @api_view(["PUT"])
 @permission_classes([IsAdminUser])
 def update_user(request, pk):
-    """Update user (admin only)"""
+    """Update user (admin only) - With integrity check"""
     try:
         user = User.objects.get(id=pk)
         data = request.data
 
+        # Check for email conflicts before saving
+        new_email = data.get("email", user.email).lower().strip()
+        if new_email != user.email and User.objects.filter(email=new_email).exists():
+            return Response(
+                {"detail": "User with this email already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         user.first_name = data.get("name", user.first_name)
-        user.email = data.get("email", user.email)
-        user.username = data.get("email", user.username)
+        user.email = new_email
+        user.username = new_email
         
         # Update admin status
         is_admin = data.get("is_admin", user.is_staff)
@@ -489,48 +453,3 @@ def update_user(request, pk):
             {"detail": "User not found."},
             status=status.HTTP_404_NOT_FOUND
         )
-
-
-# =============================================================================
-# VENDOR VIEWS
-# =============================================================================
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_seller_orders(request):
-    """
-    Get all orders containing products from the current vendor.
-    Returns individual order items, not complete orders.
-    """
-    user = request.user
-
-    if not hasattr(user, "profile") or user.profile.user_type != "vendor":
-        return Response(
-            {"detail": "Access denied. Vendor account required."},
-            status=status.HTTP_403_FORBIDDEN
-        )
-
-    items = (
-        OrderItem.objects.filter(product__user=user)
-        .select_related("order", "order__user", "product")
-        .order_by("-order__created_at")
-    )
-
-    custom_orders = []
-    for item in items:
-        custom_orders.append({
-            "_id": item.id,
-            "order_id": item.order.id,
-            "customer": f"{item.order.user.first_name} {item.order.user.last_name}".strip() if item.order.user else "Guest",
-            "product_name": item.name,
-            "qty": item.qty,
-            "price": str(item.price),
-            "total_price": str(item.price * item.qty),
-            "created_at": item.order.created_at.isoformat(),
-            "is_paid": item.order.is_paid,
-            "is_delivered": item.order.is_delivered,
-            "status": item.order.status,
-        })
-
-    logger.info(f"Vendor {user.id} accessed their orders: {len(custom_orders)} items")
-    return Response(custom_orders)

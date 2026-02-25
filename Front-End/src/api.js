@@ -45,7 +45,8 @@ export const ENDPOINTS = {
   REGISTER: "api/users/register/",
   USER_PROFILE: "api/users/profile/",
   PROFILE_UPDATE: "api/users/profile/update/",
-  // SELLER_ORDERS: "api/users/seller/orders/",
+
+  // Seller orders live in the store app (not users app)
   SELLER_ORDERS: "api/orders/seller-orders/",
 
   // Products
@@ -96,12 +97,18 @@ export const apiService = {
   register: (data) => api.post(ENDPOINTS.REGISTER, data),
   getProfile: () => api.get(ENDPOINTS.USER_PROFILE),
   updateProfile: (data) => api.put(ENDPOINTS.PROFILE_UPDATE, data),
-  getSellerOrders: () => api.get(ENDPOINTS.SELLER_ORDERS),
+
+  // --- Seller orders — store app endpoint ---
+  // Accepts an optional page number for DRF pagination (defaults to 1)
+  getSellerOrders: (page = 1) =>
+    api.get(ENDPOINTS.SELLER_ORDERS, { params: { page } }),
 
   // --- Products ---
   getProducts: (params) => api.get(ENDPOINTS.PRODUCTS, { params }),
   getTopProducts: () => api.get(ENDPOINTS.TOP_PRODUCTS),
-  getMyProducts: () => api.get(ENDPOINTS.MY_PRODUCTS),
+  // Accepts an optional page number for DRF pagination
+  getMyProducts: (page = 1) =>
+    api.get(ENDPOINTS.MY_PRODUCTS, { params: { page } }),
   getProductDetails: (id) => api.get(ENDPOINTS.PRODUCT_DETAILS(id)),
   createProduct: (data) => api.post(ENDPOINTS.CREATE_PRODUCT, data),
   updateProduct: (id, data) => api.put(ENDPOINTS.UPDATE_PRODUCT(id), data),
@@ -123,10 +130,14 @@ export const apiService = {
   getCart: () => api.get(ENDPOINTS.CART),
   getWishlist: () => api.get(ENDPOINTS.WISHLIST),
   createOrder: (data) => api.post(ENDPOINTS.CREATE_ORDER, data),
-  getOrders: () => api.get(ENDPOINTS.ORDERS_LIST),
-  getMyOrders: () => api.get(ENDPOINTS.MY_ORDERS),
+  getOrders: (page = 1) =>
+    api.get(ENDPOINTS.ORDERS_LIST, { params: { page } }),
+  // Accepts an optional page number for DRF pagination
+  getMyOrders: (page = 1) =>
+    api.get(ENDPOINTS.MY_ORDERS, { params: { page } }),
   getOrderDetails: (id) => api.get(ENDPOINTS.ORDER_DETAILS(id)),
-  payOrder: (id, paymentResult) => api.put(ENDPOINTS.PAY_ORDER(id), paymentResult),
+  payOrder: (id, paymentResult) =>
+    api.put(ENDPOINTS.PAY_ORDER(id), paymentResult),
   deliverOrder: (id) => api.put(ENDPOINTS.DELIVER_ORDER(id)),
   deleteOrder: (id) => api.delete(ENDPOINTS.DELETE_ORDER(id)),
 

@@ -6199,3 +6199,118 @@ INFO 2026-02-23 08:27:11,312 log 12900 26396 "GET /api/users/profile/ HTTP/1.1" 
 INFO 2026-02-23 08:27:11,323 log 12900 26396 "GET /api/users/profile/ HTTP/1.1" 200 398
 WARNING 2026-02-23 08:27:11,374 log 12900 5596 Not Found: /media/profiles/Gemini_Generated_Image_tu18z6tu18z6tu18.png
 WARNING 2026-02-23 08:27:11,374 log 12900 5596 "GET /media/profiles/Gemini_Generated_Image_tu18z6tu18z6tu18.png HTTP/1.1" 404 3063
+INFO 2026-02-25 00:07:36,993 autoreload 27784 22648 Watching for file changes with StatReloader
+INFO 2026-02-25 00:07:39,832 log 27784 40544 "OPTIONS /api/cart/clear/ HTTP/1.1" 200 0
+WARNING 2026-02-25 00:07:39,846 log 27784 40544 Unauthorized: /api/cart/clear/
+WARNING 2026-02-25 00:07:39,849 log 27784 40544 "DELETE /api/cart/clear/ HTTP/1.1" 401 58
+INFO 2026-02-25 00:16:12,447 log 27784 15468 "POST /api/users/login/ HTTP/1.1" 200 1128
+WARNING 2026-02-25 00:18:40,361 log 27784 1348 Unauthorized: /api/users/profile/
+WARNING 2026-02-25 00:18:40,361 log 27784 1348 "GET /api/users/profile/ HTTP/1.1" 401 58
+INFO 2026-02-25 00:22:43,151 log 27784 18916 "GET /api/users/profile/ HTTP/1.1" 200 398
+INFO 2026-02-25 00:31:49,082 views 27784 1820 Profile updated for user 1
+INFO 2026-02-25 00:31:49,087 log 27784 1820 "PUT /api/users/profile/update/ HTTP/1.1" 200 604
+INFO 2026-02-25 00:32:00,517 log 27784 10824 "GET /media/profiles/IMG20250518135028.jpg HTTP/1.1" 200 5409924
+WARNING 2026-02-25 00:32:01,295 log 27784 10824 Not Found: /favicon.ico
+WARNING 2026-02-25 00:32:01,296 log 27784 10824 "GET /favicon.ico HTTP/1.1" 404 2848
+INFO 2026-02-25 00:39:03,871 models 27784 32052 Profile created for user 4
+INFO 2026-02-25 00:39:05,469 views 27784 32052 Activation email sent to john.doe@example.com
+INFO 2026-02-25 00:39:05,470 log 27784 32052 "POST /api/users/register/ HTTP/1.1" 201 92
+ERROR 2026-02-25 00:41:19,051 log 27784 12008 Internal Server Error: /api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc2
+Traceback (most recent call last):
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\utils\deprecation.py", line 311, in __call__
+    response = self.process_response(request, response)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\middleware\common.py", line 109, in process_response
+    self.get_full_path_with_slash(request)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\middleware\common.py", line 87, in get_full_path_with_slash
+    raise RuntimeError(
+    ...<9 lines>...
+    )
+RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to localhost:8000/api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc2/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings.
+ERROR 2026-02-25 00:41:19,054 log 27784 12008 "POST /api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc2 HTTP/1.1" 500 82422
+ERROR 2026-02-25 00:41:29,302 log 27784 15700 Internal Server Error: /api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc2
+Traceback (most recent call last):
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\utils\deprecation.py", line 311, in __call__
+    response = self.process_response(request, response)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\middleware\common.py", line 109, in process_response
+    self.get_full_path_with_slash(request)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\middleware\common.py", line 87, in get_full_path_with_slash
+    raise RuntimeError(
+    ...<9 lines>...
+    )
+RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to localhost:8000/api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc2/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings.
+ERROR 2026-02-25 00:41:29,304 log 27784 15700 "POST /api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc2 HTTP/1.1" 500 82422
+ERROR 2026-02-25 00:42:15,704 log 27784 9584 Internal Server Error: /api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc2
+Traceback (most recent call last):
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\utils\deprecation.py", line 311, in __call__
+    response = self.process_response(request, response)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\middleware\common.py", line 109, in process_response
+    self.get_full_path_with_slash(request)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\middleware\common.py", line 87, in get_full_path_with_slash
+    raise RuntimeError(
+    ...<9 lines>...
+    )
+RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to localhost:8000/api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc2/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings.
+ERROR 2026-02-25 00:42:15,706 log 27784 9584 "POST /api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc2 HTTP/1.1" 500 82422
+INFO 2026-02-25 01:19:02,474 autoreload 15460 12624 Watching for file changes with StatReloader
+INFO 2026-02-25 01:19:05,822 log 15460 17568 "POST /api/users/login/ HTTP/1.1" 200 1092
+INFO 2026-02-25 01:19:09,314 log 15460 17568 "GET /api/users/profile/ HTTP/1.1" 200 362
+ERROR 2026-02-25 01:20:11,397 log 15460 16748 Internal Server Error: /api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc25c
+Traceback (most recent call last):
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\utils\deprecation.py", line 311, in __call__
+    response = self.process_response(request, response)
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\middleware\common.py", line 109, in process_response
+    self.get_full_path_with_slash(request)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "A:\smart-shop0\.venv\Lib\site-packages\django\middleware\common.py", line 87, in get_full_path_with_slash
+    raise RuntimeError(
+    ...<9 lines>...
+    )
+RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to localhost:8000/api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc25c/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings.
+ERROR 2026-02-25 01:20:11,400 log 15460 16748 "POST /api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc25c HTTP/1.1" 500 82449
+INFO 2026-02-25 01:20:14,925 views 15460 9940 User activated: 4
+INFO 2026-02-25 01:20:14,925 log 15460 9940 "POST /api/users/activate/NA/d4j5t3-bd306baf451a281ce8e23260addcc25c/ HTTP/1.1" 200 64
+INFO 2026-02-25 01:20:30,352 log 15460 15936 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 01:20:30,358 log 15460 15936 "GET /api/settings/ HTTP/1.1" 200 126
+INFO 2026-02-25 01:31:15,143 log 15460 26980 "GET /api/users/?page=1 HTTP/1.1" 200 1510
+INFO 2026-02-25 01:37:01,093 autoreload 15460 12624 A:\smart-shop0\Back-End\users\models.py changed, reloading.
+INFO 2026-02-25 01:37:02,141 autoreload 16848 13100 Watching for file changes with StatReloader
+INFO 2026-02-25 01:37:26,466 autoreload 16848 13100 A:\smart-shop0\Back-End\users\serializers.py changed, reloading.
+INFO 2026-02-25 01:37:27,296 autoreload 6256 27080 Watching for file changes with StatReloader
+INFO 2026-02-25 01:37:40,763 autoreload 6256 27080 A:\smart-shop0\Back-End\users\urls.py changed, reloading.
+INFO 2026-02-25 01:37:41,558 autoreload 13468 6772 Watching for file changes with StatReloader
+INFO 2026-02-25 01:38:17,313 autoreload 13468 6772 A:\smart-shop0\Back-End\users\views.py changed, reloading.
+INFO 2026-02-25 01:38:18,130 autoreload 19276 5100 Watching for file changes with StatReloader
+INFO 2026-02-25 01:42:34,346 autoreload 19276 5100 A:\smart-shop0\Back-End\users\serializers.py changed, reloading.
+INFO 2026-02-25 01:42:35,144 autoreload 9308 18600 Watching for file changes with StatReloader
+INFO 2026-02-25 01:42:49,661 autoreload 9308 18600 A:\smart-shop0\Back-End\users\serializers.py changed, reloading.
+INFO 2026-02-25 01:42:50,397 autoreload 21080 17660 Watching for file changes with StatReloader
+INFO 2026-02-25 01:43:17,821 autoreload 21080 17660 A:\smart-shop0\Back-End\users\serializers.py changed, reloading.
+INFO 2026-02-25 01:43:18,595 autoreload 12760 21308 Watching for file changes with StatReloader
+INFO 2026-02-25 02:01:01,600 autoreload 12760 21308 A:\smart-shop0\Back-End\users\urls.py changed, reloading.
+INFO 2026-02-25 02:01:02,406 autoreload 22664 23788 Watching for file changes with StatReloader
+INFO 2026-02-25 02:01:04,818 autoreload 22664 23788 A:\smart-shop0\Back-End\users\urls.py changed, reloading.
+INFO 2026-02-25 02:01:05,662 autoreload 18168 7508 Watching for file changes with StatReloader
+INFO 2026-02-25 02:01:09,408 autoreload 18168 7508 A:\smart-shop0\Back-End\users\urls.py changed, reloading.
+INFO 2026-02-25 02:01:10,183 autoreload 13728 27436 Watching for file changes with StatReloader
+INFO 2026-02-25 02:01:32,165 autoreload 13728 27436 A:\smart-shop0\Back-End\users\views.py changed, reloading.
+INFO 2026-02-25 02:01:33,343 autoreload 5764 16256 Watching for file changes with StatReloader
+INFO 2026-02-25 02:01:39,548 autoreload 5764 16256 A:\smart-shop0\Back-End\users\views.py changed, reloading.
+INFO 2026-02-25 02:01:40,338 autoreload 7808 6500 Watching for file changes with StatReloader
+INFO 2026-02-25 02:02:56,869 autoreload 7808 6500 A:\smart-shop0\Back-End\store\views.py changed, reloading.
+INFO 2026-02-25 02:02:57,692 autoreload 2056 2640 Watching for file changes with StatReloader
+INFO 2026-02-25 02:03:00,449 autoreload 2056 2640 A:\smart-shop0\Back-End\store\views.py changed, reloading.
+INFO 2026-02-25 02:03:01,234 autoreload 9676 2736 Watching for file changes with StatReloader
+INFO 2026-02-25 02:21:22,980 autoreload 9676 2736 A:\smart-shop0\Back-End\store\views.py changed, reloading.
+INFO 2026-02-25 02:21:23,868 autoreload 28344 19628 Watching for file changes with StatReloader
+INFO 2026-02-25 02:26:22,890 autoreload 14300 27276 Watching for file changes with StatReloader

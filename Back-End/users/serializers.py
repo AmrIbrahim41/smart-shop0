@@ -10,6 +10,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from .models import Profile
+from store.models import OrderItem  # تأكد من صحة هذا المسار حسب تطبيقك
 import logging
 
 logger = logging.getLogger(__name__)
@@ -169,8 +170,8 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         with transaction.atomic():
             user = User.objects.create_user(
-                username=validated_data["email"],
-                email=validated_data["email"],
+                username=validated_data["email"].lower(),
+                email=validated_data["email"].lower(),
                 password=validated_data["password"],
                 first_name=validated_data.get("first_name", ""),
                 last_name=validated_data.get("last_name", ""),
@@ -178,17 +179,74 @@ class RegisterSerializer(serializers.ModelSerializer):
             )
 
             try:
-                profile = user.profile
-                if phone:
-                    profile.phone = phone
-                profile.user_type = user_type
-                profile.save()
-                logger.info(f"User created: {user.id} ({user_type})")
+                Profile.objects.create(
+                    user=user,
+                    phone=phone if phone else "",
+                    user_type=user_type
+                )
+                logger.info(f"User and Profile created: {user.id} ({user_type})")
             except Exception as e:
-                logger.error(f"Error updating profile for user {user.id}: {str(e)}")
+                logger.error(f"Error creating profile for user {user.id}: {str(e)}")
                 raise serializers.ValidationError("Failed to complete profile creation.")
 
         return user
+
+# =============================================================================
+# CHANGE PASSWORD SERIALIZER
+# =============================================================================
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """Serializer for password change endpoint"""
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+    confirm_password = serializers.CharField(required=True)
+
+    def validate_new_password(self, value):
+        try:
+            validate_password(value)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({"new_password": "Password fields didn't match."})
+        return attrs
+
+# =============================================================================
+# VENDOR ORDER ITEM SERIALIZER
+# =============================================================================
+
+class VendorOrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='name', read_only=True)
+    """Serializer for vendor orders response"""
+    _id = serializers.SerializerMethodField(read_only=True)
+    order_id = serializers.IntegerField(source='order.id', read_only=True)
+    customer = serializers.SerializerMethodField(read_only=True)
+    total_price = serializers.SerializerMethodField(read_only=True)
+    created_at = serializers.DateTimeField(source='order.created_at', read_only=True)
+    is_paid = serializers.BooleanField(source='order.is_paid', read_only=True)
+    is_delivered = serializers.BooleanField(source='order.is_delivered', read_only=True)
+    status = serializers.CharField(source='order.status', read_only=True)
+
+    class Meta:
+        model = OrderItem
+        fields = [
+            "_id", "order_id", "customer", "product_name", "qty", 
+            "price", "total_price", "created_at", "is_paid", 
+            "is_delivered", "status"
+        ]
+
+    def get__id(self, obj):
+        return obj.id
+
+    def get_customer(self, obj):
+        if obj.order.user:
+            return f"{obj.order.user.first_name} {obj.order.user.last_name}".strip()
+        return "Guest"
+
+    def get_total_price(self, obj):
+        return str(obj.price * obj.qty)
 
 # =============================================================================
 # LOGIN TOKEN SERIALIZER
@@ -201,6 +259,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         """Add user data to JWT token response"""
         data = super().validate(attrs)
 
+        # Fallback profile creation if it doesn't exist
         if not hasattr(self.user, "profile"):
             Profile.objects.create(user=self.user)
             logger.info(f"Profile created for existing user {self.user.id}")

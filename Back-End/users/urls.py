@@ -18,18 +18,14 @@ urlpatterns = [
     # =============================================================================
     path("profile/", views.get_user_profile, name="users-profile"),
     path("profile/update/", views.update_user_profile, name="users-profile-update"),
+    path("profile/change-password/", views.change_password, name="user-change-password"),
     
     # =============================================================================
     # PASSWORD RESET
     # =============================================================================
     path("forgot-password/", views.forgot_password, name="forgot-password"),
     path("reset-password/<str:uid>/<str:token>/", views.reset_password, name="reset-password"),
-    
-    # =============================================================================
-    # VENDOR OPERATIONS
-    # =============================================================================
-    path("seller/orders/", views.get_seller_orders, name="seller-orders"),
-    
+       
     # =============================================================================
     # ADMIN USER MANAGEMENT
     # =============================================================================

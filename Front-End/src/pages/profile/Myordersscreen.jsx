@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     FaShoppingBag, FaStore, FaBoxOpen, FaCheck, FaTimes, FaCalendarAlt,
-    FaChevronRight, FaSpinner, FaArrowLeft, FaReceipt, FaTag, FaStar
+    FaChevronRight, FaSpinner, FaArrowLeft, FaReceipt, FaTag, FaStar,
+    FaChevronLeft
 } from 'react-icons/fa';
 import { apiService, getImageUrl } from '../../api';
 import { useSettings } from '../../context/SettingsContext';
@@ -136,12 +137,38 @@ const OrderCardSkeleton = () => (
     </div>
 );
 
+// ── Shared Pagination Controls ───────────────────────────────────────────────
+const PaginationBar = ({ currentPage, totalPages, onPageChange }) => {
+    if (totalPages <= 1) return null;
+    return (
+        <div className="flex justify-center items-center gap-3 mt-8">
+            <button
+                onClick={() => onPageChange(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold bg-white dark:bg-gray-800 border border-slate-200/70 dark:border-white/10 rounded-xl text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 disabled:opacity-40 transition-colors"
+            >
+                <FaChevronLeft className="text-xs" /> Prev
+            </button>
+            <span className="px-4 py-2 text-sm font-black text-slate-900 dark:text-white bg-primary/10 rounded-lg">
+                {currentPage} <span className="text-slate-500 font-bold mx-1">/</span> {totalPages}
+            </span>
+            <button
+                onClick={() => onPageChange(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold bg-white dark:bg-gray-800 border border-slate-200/70 dark:border-white/10 rounded-xl text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 disabled:opacity-40 transition-colors"
+            >
+                Next <FaChevronRight className="text-xs" />
+            </button>
+        </div>
+    );
+};
+
 // =============================================================================
 // PURCHASE ORDER CARD (Customer View)
 // =============================================================================
 const PurchaseOrderCard = ({ order, index }) => {
     const navigate = useNavigate();
-    
+
     // SAFE FALLBACKS FOR ALL VARIABLES
     const orderId = order?.id || order?._id || order?.order_id || order?.orderId;
     const safeDisplayId = orderId ? String(orderId).slice(0, 8).toUpperCase() : 'UNKNOWN';
@@ -231,16 +258,19 @@ const PurchaseOrderCard = ({ order, index }) => {
                 <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-white/5">
                     <div>
                         <p className="text-xs text-slate-400 dark:text-gray-500 font-bold uppercase tracking-widest mb-0.5">
-                            Total
+                            Order Total
                         </p>
                         <span className="text-xl font-black text-slate-800 dark:text-white">
                             ${Number(totalPrice).toFixed(2)}
                         </span>
                     </div>
-                    <div className="flex items-center gap-2 px-5 py-2.5 bg-primary/10 dark:bg-primary/15 text-primary rounded-xl font-bold text-sm group-hover:bg-primary group-hover:text-white shadow-sm transition-all duration-300">
-                        <span>View Details</span>
-                        <FaChevronRight className="text-xs transform group-hover:translate-x-0.5 transition-transform" />
-                    </div>
+                    <button
+                        onClick={() => orderId && navigate(`/order/${orderId}`)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 dark:bg-white/10 text-white dark:text-gray-100 rounded-xl font-bold text-sm shadow-md hover:bg-primary dark:hover:bg-primary transition-all duration-300 hover:scale-105 active:scale-95"
+                    >
+                        <span>View Full Order</span>
+                        <FaChevronRight className="text-xs" />
+                    </button>
                 </div>
             </div>
         </motion.div>
@@ -252,7 +282,7 @@ const PurchaseOrderCard = ({ order, index }) => {
 // =============================================================================
 const StoreOrderCard = ({ order, myProductIds, index }) => {
     const navigate = useNavigate();
-    
+
     // SAFE FALLBACKS FOR ALL VARIABLES
     const orderId = order?.id || order?._id || order?.order_id || order?.orderId;
     const safeDisplayId = orderId ? String(orderId).slice(0, 8).toUpperCase() : 'UNKNOWN';
@@ -260,7 +290,7 @@ const StoreOrderCard = ({ order, myProductIds, index }) => {
     const createdAt = order?.created_at || order?.createdAt || '';
     const totalPrice = order?.total_price || order?.totalPrice || 0;
 
-    const myItems = items.filter(item => myProductIds.has(Number(item.product)));
+    const myItems    = items.filter(item => myProductIds.has(Number(item.product)));
     const otherItems = items.filter(item => !myProductIds.has(Number(item.product)));
 
     return (
@@ -413,7 +443,7 @@ const MyOrdersScreen = () => {
         catch { return null; }
     }, []);
 
-    const isAdmin = userInfo?.isAdmin === true || userInfo?.is_admin === true;
+    const isAdmin  = userInfo?.isAdmin === true || userInfo?.is_admin === true;
     const isVendor =
         userInfo?.profile?.userType === 'vendor' ||
         userInfo?.profile?.user_type === 'vendor' ||
@@ -422,27 +452,41 @@ const MyOrdersScreen = () => {
     const isSeller = isAdmin || isVendor;
 
     const [activeTab, setActiveTab] = useState('purchases');
-    const [myOrders, setMyOrders] = useState([]);
-    const [sellerOrders, setSellerOrders] = useState([]);
-    const [myProductIds, setMyProductIds] = useState(new Set());
-    const [loading, setLoading] = useState(true);
-    const [sellerLoading, setSellerLoading] = useState(false);
-    const [error, setError] = useState(null);
 
-    // ----- Redirect unauthenticated users -----
+    // ── My purchases state ───────────────────────────────────────────────────
+    const [myOrders, setMyOrders]           = useState([]);
+    const [myOrdersPage, setMyOrdersPage]   = useState(1);
+    const [myOrdersPages, setMyOrdersPages] = useState(1);
+    const [loading, setLoading]             = useState(true);
+    const [error, setError]                 = useState(null);
+
+    // ── Seller / store orders state ──────────────────────────────────────────
+    const [sellerOrders, setSellerOrders]           = useState([]);
+    const [sellerOrdersPage, setSellerOrdersPage]   = useState(1);
+    const [sellerOrdersPages, setSellerOrdersPages] = useState(1);
+    const [myProductIds, setMyProductIds]           = useState(new Set());
+    const [sellerLoading, setSellerLoading]         = useState(false);
+
+    // ── Redirect unauthenticated users ───────────────────────────────────────
     useEffect(() => {
         if (!userInfo) navigate('/login');
     }, [userInfo, navigate]);
 
-    // ----- Fetch my purchase orders -----
-    const fetchMyOrders = useCallback(async () => {
+    // ── Fetch my purchase orders (paginated) ─────────────────────────────────
+    const fetchMyOrders = useCallback(async (page = 1) => {
         try {
             setLoading(true);
             setError(null);
-            const { data } = await apiService.getMyOrders();
-            // Handle both plain array and paginated {orders: [...]} formats
-            const orders = Array.isArray(data) ? data : (data.orders || []);
-            setMyOrders(orders);
+            const { data } = await apiService.getMyOrders(page);
+            // Handle both plain array and paginated { orders, page, pages } formats
+            if (Array.isArray(data)) {
+                setMyOrders(data);
+                setMyOrdersPages(1);
+            } else {
+                setMyOrders(data.orders || []);
+                setMyOrdersPage(data.page || 1);
+                setMyOrdersPages(data.pages || 1);
+            }
         } catch (err) {
             console.error('MyOrders fetch error:', err);
             setError(err.response?.data?.detail || 'Failed to load your orders.');
@@ -452,24 +496,32 @@ const MyOrdersScreen = () => {
         }
     }, []);
 
-    // ----- Fetch seller orders + product ids for highlighting -----
-    const fetchSellerData = useCallback(async () => {
+    // ── Fetch seller orders + product ids for highlighting ───────────────────
+    const fetchSellerData = useCallback(async (page = 1) => {
         if (!isSeller) return;
         try {
             setSellerLoading(true);
             const [ordersRes, productsRes] = await Promise.all([
-                apiService.getSellerOrders(),
+                apiService.getSellerOrders(page),
                 apiService.getMyProducts(),
             ]);
-            // Seller orders
-            const orders = Array.isArray(ordersRes.data)
-                ? ordersRes.data
-                : (ordersRes.data.orders || ordersRes.data.results || []);
-            setSellerOrders(orders);
+
+            // Seller orders — handle paginated envelope
+            const ordersData = ordersRes.data;
+            if (Array.isArray(ordersData)) {
+                setSellerOrders(ordersData);
+                setSellerOrdersPages(1);
+            } else {
+                setSellerOrders(ordersData.orders || ordersData.results || []);
+                setSellerOrdersPage(ordersData.page || 1);
+                setSellerOrdersPages(ordersData.pages || 1);
+            }
+
             // Build a Set of the seller's product IDs for O(1) lookup
-            const products = Array.isArray(productsRes.data)
-                ? productsRes.data
-                : (productsRes.data.products || productsRes.data.results || []);
+            const productsData = productsRes.data;
+            const products = Array.isArray(productsData)
+                ? productsData
+                : (productsData.products || productsData.results || []);
             setMyProductIds(new Set(products.map(p => Number(p.id))));
         } catch (err) {
             console.error('SellerOrders fetch error:', err);
@@ -479,15 +531,14 @@ const MyOrdersScreen = () => {
         }
     }, [isSeller]);
 
+    // Fetch purchases on page change
+    useEffect(() => { fetchMyOrders(myOrdersPage); }, [myOrdersPage]); // eslint-disable-line
+    // Fetch seller orders on page change
     useEffect(() => {
-        fetchMyOrders();
-    }, [fetchMyOrders]);
+        if (isSeller) fetchSellerData(sellerOrdersPage);
+    }, [isSeller, sellerOrdersPage]); // eslint-disable-line
 
-    useEffect(() => {
-        if (isSeller) fetchSellerData();
-    }, [isSeller, fetchSellerData]);
-
-    // ----- Render: Loading -----
+    // ── Render: Loading ───────────────────────────────────────────────────────
     if (loading) {
         return (
             <div className="min-h-screen pt-28 pb-10 px-4 md:px-6 bg-slate-50/80 dark:bg-gray-900">
@@ -501,7 +552,7 @@ const MyOrdersScreen = () => {
         );
     }
 
-    // ----- Render: Error -----
+    // ── Render: Error ─────────────────────────────────────────────────────────
     if (error) {
         return (
             <div className="min-h-screen pt-28 flex flex-col items-center justify-center gap-4 px-4 bg-slate-50/80 dark:bg-gray-900">
@@ -511,7 +562,7 @@ const MyOrdersScreen = () => {
                 <h2 className="text-xl font-black text-slate-800 dark:text-white">Something went wrong</h2>
                 <p className="text-slate-500 dark:text-gray-400 text-sm text-center max-w-sm">{error}</p>
                 <button
-                    onClick={fetchMyOrders}
+                    onClick={() => fetchMyOrders(1)}
                     className="px-6 py-2.5 bg-primary text-white font-bold rounded-full hover:bg-orange-600 shadow-md transition"
                 >
                     Try Again
@@ -525,7 +576,12 @@ const MyOrdersScreen = () => {
         ...(isSeller ? [{ key: 'store', label: 'Store Orders', icon: <FaStore />, count: sellerOrders.length }] : []),
     ];
 
-    const currentOrders = activeTab === 'purchases' ? myOrders : sellerOrders;
+    const currentOrders  = activeTab === 'purchases' ? myOrders : sellerOrders;
+    const currentPage    = activeTab === 'purchases' ? myOrdersPage : sellerOrdersPage;
+    const currentPages   = activeTab === 'purchases' ? myOrdersPages : sellerOrdersPages;
+    const onPageChange   = activeTab === 'purchases'
+        ? setMyOrdersPage
+        : setSellerOrdersPage;
 
     return (
         <motion.div
@@ -625,26 +681,35 @@ const MyOrdersScreen = () => {
                         ) : currentOrders.length === 0 ? (
                             <EmptyState tab={activeTab} />
                         ) : (
-                            <motion.div
-                                variants={listVariants}
-                                initial="hidden"
-                                animate="visible"
-                                className="space-y-5"
-                            >
-                                {activeTab === 'purchases'
-                                    ? currentOrders.map((order, index) => (
-                                        <PurchaseOrderCard key={index} order={order} index={index} />
-                                    ))
-                                    : currentOrders.map((order, index) => (
-                                        <StoreOrderCard
-                                            key={index}
-                                            order={order}
-                                            myProductIds={myProductIds}
-                                            index={index}
-                                        />
-                                    ))
-                                }
-                            </motion.div>
+                            <>
+                                <motion.div
+                                    variants={listVariants}
+                                    initial="hidden"
+                                    animate="visible"
+                                    className="space-y-5"
+                                >
+                                    {activeTab === 'purchases'
+                                        ? currentOrders.map((order, index) => (
+                                            <PurchaseOrderCard key={order?.id || index} order={order} index={index} />
+                                        ))
+                                        : currentOrders.map((order, index) => (
+                                            <StoreOrderCard
+                                                key={order?.id || index}
+                                                order={order}
+                                                myProductIds={myProductIds}
+                                                index={index}
+                                            />
+                                        ))
+                                    }
+                                </motion.div>
+
+                                {/* Pagination Controls */}
+                                <PaginationBar
+                                    currentPage={currentPage}
+                                    totalPages={currentPages}
+                                    onPageChange={onPageChange}
+                                />
+                            </>
                         )}
                     </motion.div>
                 </AnimatePresence>

@@ -35,7 +35,7 @@ const RegisterPage = () => {
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    
+
     // Clear specific error when user types
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
@@ -85,7 +85,8 @@ const RegisterPage = () => {
         last_name: formData.lastName,
         email: formData.email.toLowerCase().trim(),
         password: formData.password,
-        type: formData.userType
+        confirm_password: formData.confirmPassword, 
+        user_type: formData.userType 
       });
 
       toast.success('Registration successful! Check your email to activate your account.', {
@@ -99,11 +100,11 @@ const RegisterPage = () => {
 
     } catch (error) {
       console.error("Registration error:", error);
-      
-      const errorMsg = error.response?.data?.detail || 
-                       error.response?.data?.email?.[0] ||
-                       'Registration failed. Please try again.';
-      
+
+      const errorMsg = error.response?.data?.detail ||
+        error.response?.data?.email?.[0] ||
+        'Registration failed. Please try again.';
+
       toast.error(errorMsg, { duration: 4000 });
       setErrors({ general: errorMsg });
     } finally {
@@ -139,7 +140,7 @@ const RegisterPage = () => {
         className="relative z-10 w-full max-w-lg"
       >
         <div className="bg-white/80 dark:bg-gray-800/60 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-[2.5rem] shadow-2xl p-8 md:p-10">
-          
+
           {/* Header */}
           <div className="text-center mb-8">
             <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
@@ -165,7 +166,7 @@ const RegisterPage = () => {
           </AnimatePresence>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            
+
             {/* User Type Selection */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
@@ -175,24 +176,22 @@ const RegisterPage = () => {
                 <button
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, userType: 'customer' }))}
-                  className={`p-4 rounded-2xl border-2 transition-all ${
-                    formData.userType === 'customer'
+                  className={`p-4 rounded-2xl border-2 transition-all ${formData.userType === 'customer'
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'
-                  }`}
+                    }`}
                 >
                   <FaUserTie className="mx-auto text-2xl mb-2" />
                   <span className="font-bold text-sm">Customer</span>
                 </button>
-                
+
                 <button
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, userType: 'vendor' }))}
-                  className={`p-4 rounded-2xl border-2 transition-all ${
-                    formData.userType === 'vendor'
+                  className={`p-4 rounded-2xl border-2 transition-all ${formData.userType === 'vendor'
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'
-                  }`}
+                    }`}
                 >
                   <FaStore className="mx-auto text-2xl mb-2" />
                   <span className="font-bold text-sm">Vendor</span>
@@ -214,9 +213,8 @@ const RegisterPage = () => {
                     required
                     value={formData.firstName}
                     onChange={handleChange}
-                    className={`w-full bg-gray-50 dark:bg-gray-900/50 border ${
-                      errors.firstName ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
-                    } rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold placeholder-gray-300 dark:placeholder-gray-600 text-gray-900 dark:text-white`}
+                    className={`w-full bg-gray-50 dark:bg-gray-900/50 border ${errors.firstName ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
+                      } rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold placeholder-gray-300 dark:placeholder-gray-600 text-gray-900 dark:text-white`}
                     placeholder="John"
                   />
                 </div>
@@ -251,9 +249,8 @@ const RegisterPage = () => {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className={`w-full bg-gray-50 dark:bg-gray-900/50 border ${
-                    errors.email ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
-                  } rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold placeholder-gray-300 dark:placeholder-gray-600 text-gray-900 dark:text-white`}
+                  className={`w-full bg-gray-50 dark:bg-gray-900/50 border ${errors.email ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
+                    } rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold placeholder-gray-300 dark:placeholder-gray-600 text-gray-900 dark:text-white`}
                   placeholder="john@example.com"
                 />
               </div>
@@ -273,9 +270,8 @@ const RegisterPage = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className={`w-full bg-gray-50 dark:bg-gray-900/50 border ${
-                    errors.password ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
-                  } rounded-2xl py-3 pl-11 pr-12 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold placeholder-gray-300 dark:placeholder-gray-600 text-gray-900 dark:text-white`}
+                  className={`w-full bg-gray-50 dark:bg-gray-900/50 border ${errors.password ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
+                    } rounded-2xl py-3 pl-11 pr-12 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold placeholder-gray-300 dark:placeholder-gray-600 text-gray-900 dark:text-white`}
                   placeholder="••••••••"
                 />
                 <button
@@ -302,9 +298,8 @@ const RegisterPage = () => {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className={`w-full bg-gray-50 dark:bg-gray-900/50 border ${
-                    errors.confirmPassword ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
-                  } rounded-2xl py-3 pl-11 pr-12 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold placeholder-gray-300 dark:placeholder-gray-600 text-gray-900 dark:text-white`}
+                  className={`w-full bg-gray-50 dark:bg-gray-900/50 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
+                    } rounded-2xl py-3 pl-11 pr-12 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold placeholder-gray-300 dark:placeholder-gray-600 text-gray-900 dark:text-white`}
                   placeholder="••••••••"
                 />
                 <button
