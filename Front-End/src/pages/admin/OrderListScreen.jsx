@@ -11,7 +11,7 @@ import {
     FaSearch, FaSpinner, FaCheckCircle, FaTruck,
     FaEye, FaShoppingCart, FaExclamationTriangle,
     FaSync, FaTimes, FaMoneyBillWave, FaCalendarAlt,
-    FaUser, FaHashtag, FaFilter, FaTimesCircle
+    FaUser, FaHashtag, FaFilter, FaTimesCircle, FaDownload
 } from 'react-icons/fa';
 import api from '../../api';
 import toast from 'react-hot-toast';
@@ -144,6 +144,34 @@ const OrderListScreen = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages]   = useState(1);
     const [updating, setUpdating]       = useState(null);
+    const [isExporting, setIsExporting] = useState(false); // حالة تحميل الملف
+
+    // دالة تصدير الطلبات
+    const handleExportCSV = async () => {
+        setIsExporting(true);
+        try {
+            // نستخدم responseType: 'blob' لأننا نستقبل ملف وليس JSON
+            const response = await api.get('/api/orders/export/csv/', {
+                responseType: 'blob',
+            });
+
+            // إنشاء رابط وهمي لتحميل الملف في المتصفح
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'orders_report.xlsx');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            
+            toast.success('Orders exported successfully!', { icon: '📊' });
+        } catch (error) {
+            console.error('Export error:', error);
+            toast.error('Failed to export orders. Make sure you are an admin.');
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     const fetchOrders = useCallback(async (page = 1) => {
         setLoading(true);
@@ -253,6 +281,16 @@ const OrderListScreen = () => {
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
+                        {/* زر التصدير الجديد */}
+                        <button
+                            onClick={handleExportCSV}
+                            disabled={isExporting}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-bold transition-all shadow-md active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {isExporting ? <FaSpinner className="animate-spin" /> : <FaDownload />}
+                            Export Excel
+                        </button>
+
                         <button
                             onClick={() => fetchOrders(currentPage)}
                             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-sm font-bold border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"

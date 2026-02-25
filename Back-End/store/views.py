@@ -35,6 +35,8 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
 
 from .models import (
     Category,
@@ -1419,46 +1421,58 @@ def get_dashboard_stats(request):
 
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
-def export_orders_csv(request):
-    """Export all orders to CSV (admin only)"""
-    response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = 'attachment; filename="orders_report.csv"'
+def export_orders_csv(request): # تركنا الاسم كما هو لكي لا نضطر لتعديل urls.py
+    """Export all orders to a styled Excel file (admin only)"""
+    
+    # تغيير نوع الملف ليكون إكسيل
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = 'attachment; filename="orders_report.xlsx"'
 
-    writer = csv.writer(response)
-    writer.writerow(
-        [
-            "Order ID",
-            "Customer",
-            "Email",
-            "Date",
-            "Total Price",
-            "Paid",
-            "Delivered",
-            "Status",
-        ]
-    )
+    # إنشاء ملف إكسيل جديد
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Orders Report"
 
+    # 1. كتابة العناوين وتنسيقها
+    headers = ["Order ID", "Customer", "Email", "Date", "Total Price ($)", "Paid", "Delivered", "Status"]
+    ws.append(headers)
+
+    # تنسيق صف العناوين (خلفية زرقاء داكنة، خط أبيض عريض)
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid")
+    
+    for col_num, cell in enumerate(ws[1], 1):
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        
+        # توسيع الأعمدة بشكل مبدئي
+        column_letter = openpyxl.utils.get_column_letter(col_num)
+        ws.column_dimensions[column_letter].width = 18
+
+    # 2. جلب البيانات وكتابتها
     orders = Order.objects.select_related("user").order_by("-created_at")
 
     for order in orders:
-        writer.writerow(
-            [
-                order.id,
-                (
-                    f"{order.user.first_name} {order.user.last_name}".strip()
-                    if order.user
-                    else "Guest"
-                ),
-                order.user.email if order.user else "",
-                order.created_at.strftime("%Y-%m-%d %H:%M"),
-                str(order.total_price),
-                "Yes" if order.is_paid else "No",
-                "Yes" if order.is_delivered else "No",
-                order.status,
-            ]
-        )
+        ws.append([
+            order.id,
+            f"{order.user.first_name} {order.user.last_name}".strip() if order.user else "Guest",
+            order.user.email if order.user else "",
+            order.created_at.strftime("%Y-%m-%d %H:%M"),
+            float(order.total_price), # تحويل لنوع float ليقرأه إكسيل كرقم
+            "Yes" if order.is_paid else "No",
+            "Yes" if order.is_delivered else "No",
+            order.status,
+        ])
+        
+        # تنسيق الخلايا لتكون في المنتصف
+        for cell in ws[ws.max_row]:
+            cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    logger.info(f"Orders CSV exported by admin user {request.user.id}")
+    # حفظ الملف في الـ Response
+    wb.save(response)
+    
+    logger.info(f"Orders Excel exported by admin user {request.user.id}")
     return response
 
 
