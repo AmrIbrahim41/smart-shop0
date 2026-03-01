@@ -228,7 +228,8 @@ const ProductDetails = () => {
             if (currentProduct.category) {
                 try {
                     const { data: responseData } = await api.get(
-                        `/api/products/?category=${currentProduct.category}`
+                        // التعديل هنا: استخدمنا category_slug
+                        `/api/products/?category=${currentProduct.category_slug}`
                     );
                     const productsList = responseData.products || responseData || [];
                     const related = productsList.filter(
@@ -1100,7 +1101,8 @@ const ProductDetails = () => {
                                 {t('relatedProducts') || 'You May Also Like'}
                             </h2>
                             <Link
-                                to={`/shop?category=${product.category}`}
+                                // التعديل هنا: استخدمنا product.category_slug
+                                to={`/shop?category=${product.category_slug}`}
                                 className="text-sm text-primary font-semibold hover:underline hidden md:block"
                             >
                                 View all in category →

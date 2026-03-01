@@ -128,6 +128,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "brand",
             "category",
             "category_name",
+            "category_slug", 
             "description",
             "rating",
             "num_reviews",
